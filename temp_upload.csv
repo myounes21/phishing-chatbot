@@ -1,0 +1,51 @@
+User_ID,Department,Template,Action,Response_Time_Sec
+U001,Finance,Urgent Password Reset,Clicked,35
+U002,Sales,CEO Impersonation,Ignored,0
+U003,IT,Fake Invoice,Reported,120
+U004,Finance,Package Delivery,Clicked,45
+U005,HR,Payroll Update,Clicked,28
+U006,Marketing,LinkedIn Connection,Ignored,0
+U007,Finance,Bank Alert,Clicked,15
+U008,IT,Software Update,Reported,95
+U009,Sales,Client Payment,Clicked,52
+U010,HR,Benefits Enrollment,Ignored,0
+U011,Finance,Urgent Password Reset,Clicked,22
+U012,Operations,Shipping Notification,Clicked,67
+U013,IT,System Maintenance,Ignored,0
+U014,Finance,Tax Document,Clicked,41
+U015,Sales,CEO Impersonation,Clicked,18
+U016,Marketing,Social Media Alert,Ignored,0
+U017,HR,Urgent Password Reset,Clicked,31
+U018,Finance,Package Delivery,Ignored,0
+U019,IT,Fake Invoice,Reported,145
+U020,Sales,Client Payment,Clicked,55
+U021,Finance,Bank Alert,Clicked,12
+U022,Operations,Delivery Confirmation,Ignored,0
+U023,Marketing,Campaign Report,Clicked,88
+U024,HR,Payroll Update,Clicked,25
+U025,Finance,Urgent Password Reset,Clicked,19
+U026,IT,Software Update,Ignored,0
+U027,Sales,CEO Impersonation,Clicked,33
+U028,Finance,Tax Document,Clicked,38
+U029,Operations,Shipping Notification,Clicked,71
+U030,HR,Benefits Enrollment,Ignored,0
+U031,Finance,Bank Alert,Clicked,14
+U032,Marketing,LinkedIn Connection,Clicked,102
+U033,IT,System Maintenance,Reported,178
+U034,Sales,Client Payment,Ignored,0
+U035,Finance,Package Delivery,Clicked,42
+U036,HR,Urgent Password Reset,Ignored,0
+U037,Finance,Urgent Password Reset,Clicked,27
+U038,Operations,Delivery Confirmation,Clicked,63
+U039,IT,Fake Invoice,Reported,132
+U040,Sales,CEO Impersonation,Clicked,21
+U041,Finance,Bank Alert,Clicked,16
+U042,Marketing,Social Media Alert,Clicked,95
+U043,HR,Payroll Update,Clicked,29
+U044,Finance,Tax Document,Clicked,36
+U045,IT,Software Update,Ignored,0
+U046,Sales,Client Payment,Clicked,48
+U047,Finance,Urgent Password Reset,Clicked,24
+U048,Operations,Shipping Notification,Ignored,0
+U049,HR,Benefits Enrollment,Clicked,77
+U050,Finance,Package Delivery,Clicked,39

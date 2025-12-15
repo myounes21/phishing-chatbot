@@ -1,0 +1,31 @@
+# LLM & AI
+groq
+sentence-transformers
+# torch
+# Vector Database
+qdrant-client
+
+# Data Processing
+pandas
+numpy
+
+# Web Framework
+fastapi
+uvicorn
+streamlit
+
+# Utilities
+python-dotenv
+pydantic
+pyyaml
+requests
+
+# Development
+pytest
+jupyter
+black
+flake8
+
+# Optional: API clients
+openai  # For comparison testing
+anthropic  # For comparison testing

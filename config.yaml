@@ -1,0 +1,76 @@
+# Configuration for Phishing Campaign Chatbot
+
+# API Keys (use environment variables in production)
+groq:
+  api_key: ${GROQ_API_KEY}
+  model: "llama-3.3-70b-versatile"  # Current recommended model
+  # Alternative models:
+  # - "llama-3.1-70b-versatile" (Previous stable)
+  # - "llama-3.1-8b-instant" (Faster, less capable)
+  # - "mixtral-8x7b-32768" (DEPRECATED - no longer available)
+  max_tokens: 2048
+  temperature: 0.1
+
+# Embedding Model
+embeddings:
+  model_name: "sentence-transformers/all-MiniLM-L6-v2"
+  dimension: 384
+  batch_size: 32
+  device: "cpu"  # or "cuda" if GPU available
+
+# Vector Database
+qdrant:
+  host: "localhost"
+  port: 6333
+  collection_name: "phishing_insights"
+  distance: "cosine"
+  vector_size: 384
+
+# Data Processing
+data:
+  csv_path: "data/raw/phishing_campaign.csv"
+  processed_path: "data/processed/"
+  insights_path: "data/insights/"
+  required_columns:
+    - User_ID
+    - Department
+    - Template
+    - Action
+    - Response_Time_Sec
+
+# Analysis Thresholds
+thresholds:
+  high_risk_click_rate: 0.30
+  fast_response_time: 60  # seconds
+  slow_response_time: 300  # seconds
+  min_department_size: 5  # minimum users to analyze
+
+# Insight Generation
+insights:
+  categories:
+    - department_vulnerability
+    - template_effectiveness
+    - user_risk_profile
+    - temporal_patterns
+    - behavioral_insights
+  min_confidence: 0.7
+
+# Chatbot Settings
+chatbot:
+  max_history: 10
+  response_timeout: 30
+  enable_streaming: true
+  show_sources: true
+
+# RAG Settings
+rag:
+  top_k: 5
+  similarity_threshold: 0.7
+  rerank: false
+  context_window: 2000
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/chatbot.log"
