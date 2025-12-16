@@ -45,33 +45,33 @@ class LLMOrchestrator:
         
     def _create_system_prompt(self) -> str:
         """Create the system prompt for the LLM"""
-        return """You are an expert cybersecurity analyst specializing in phishing campaign analysis. 
-Your role is to help security teams understand their phishing simulation results and provide actionable insights.
+        return """You are a versatile AI assistant specializing in Phishing Campaign Analysis and Organizational Knowledge.
 
-You have access to two types of tools:
-1. **Pandas Tool**: For quantitative queries requiring numerical analysis, statistics, rankings, or calculations
-   - Examples: click rates, counts, averages, top N lists, percentages
-   
-2. **RAG Tool**: For qualitative queries requiring explanations, context, insights, or recommendations
-   - Examples: "why" questions, behavioral patterns, risk explanations, recommendations
+You have access to two types of data sources:
 
-When responding to queries:
-- First, determine if the query needs quantitative data (use Pandas) or qualitative insights (use RAG)
-- Complex queries may require BOTH tools - use them in sequence
-- Always provide clear, actionable responses based on the data
-- Cite specific numbers and statistics when available
-- Format responses in a professional, security-focused manner
+1. **Phishing Campaign Data (Quantitative & Analytical)**
+   - Accessed via **Pandas Tool** for exact numbers, stats, lists, and rankings.
+   - Accessed via **RAG Tool** (category: `phishing_insight`) for qualitative insights, explanations, and behavioral patterns.
+   - *Use when asking about:* Click rates, risky users, department performance, template stats, simulation results.
+
+2. **Knowledge Base (Textual & Informational)**
+   - Accessed via **RAG Tool** only.
+   - Categories:
+     - `org_knowledge`: Company policies, services, "who we are", internal procedures.
+     - `general_knowledge`: General cybersecurity concepts, phishing definitions, best practices, educational content.
+   - *Use when asking about:* Company info, security policies, definitions of terms, general advice.
+
+**Instructions:**
+- **Accuracy First:** Base your answers ONLY on the provided data/context. Do not hallucinate.
+- **Data Selection:**
+  - For specific numbers/stats about the *current campaign*, prioritize the **Pandas Tool**.
+  - For explanations of those numbers, use **RAG (phishing_insight)**.
+  - For general questions or company info, use **RAG (org_knowledge / general_knowledge)**.
+- **Response Style:** Professional, clear, and actionable. Use bullet points for lists.
 
 Available query types for Pandas tool:
-- click_rate: Get click rates by department
-- department_click_rate: Get click rate for specific department
-- template_effectiveness: Analyze template performance
-- high_risk_users: Identify risky users
-- response_times: Analyze response time patterns
-- department_summary: Get comprehensive department summary
-- full_report: Get complete analysis
-
-Respond concisely but comprehensively. Use bullet points for clarity when presenting multiple items."""
+- click_rate, department_click_rate, template_effectiveness, high_risk_users, response_times, department_summary, full_report
+"""
 
     def _classify_query(self, query: str) -> Dict[str, Any]:
         """
@@ -222,12 +222,53 @@ Examples:
                 )
             
             if classification.get('needs_rag', False):
-                rag_results = self._execute_rag_query(query)
+                # We can use the classified category to narrow down search if needed
+                # For now, we might want to search broadly or specific based on implementation
+                # The current RAG retriever supports 'category' which matches our 'source_type' or 'category' field?
+                # Let's assume the classifier's 'rag_category' maps to the 'source_type' or 'category' in Qdrant
+
+                rag_category = classification.get('rag_category')
+                # If rag_category is one of our known types, we pass it.
+                # Note: vector_store.py has `search_by_source_type` and `search_by_category`.
+                # We should probably align these.
+
+                # In vector_store.py we have `search_by_category` filtering on 'category' field.
+                # In document_processor.py we set 'category' = doc_type ('org_knowledge', etc).
+                # In insight_generator.py we set 'category' = 'department_vulnerability' etc, and 'source_type' = 'phishing_insight'.
+
+                # So:
+                # If asking about phishing insights, we might want to filter by source_type='phishing_insight'
+                # If asking about org knowledge, filter by category='org_knowledge'
+
+                # To simplify, let's just pass the query to RAG. The RAG retriever in `api_backend` calls `search_by_category` if category is passed.
+                # But our categories are mixed (some are 'department_vulnerability', some are 'org_knowledge').
+
+                # Let's just search broadly for now, OR:
+                # If the classifier is confident about 'org_knowledge' or 'general_knowledge', we pass that as category.
+                # If it's 'phishing_insight', we might want to search by source_type, but `retrieve_context` only takes `category`.
+
+                # Let's adjust based on what we have.
+                # The current `retrieve_context` uses `search_by_category`.
+                # If I pass 'org_knowledge', it will work for those docs.
+                # If I pass 'phishing_insight', it won't work because phishing insights have granular categories.
+
+                # Better approach: Just search without filter, let similarity decide?
+                # Or update `retrieve_context` to handle this.
+                # For this iteration, I will just search without category to let semantic similarity work,
+                # unless I want to be strict.
+
+                # Let's try passing it if it is org/general, but ignore if phishing_insight
+
+                category_filter = None
+                if rag_category in ['org_knowledge', 'general_knowledge']:
+                    category_filter = rag_category
+
+                rag_results = self._execute_rag_query(query, category=category_filter)
                 
                 if rag_results and 'error' not in rag_results[0]:
                     formatted_context = self.rag_retriever.format_context_for_llm(rag_results)
                     context_parts.append(
-                        f"=== QUALITATIVE INSIGHTS ===\n"
+                        f"=== QUALITATIVE INSIGHTS / KNOWLEDGE ===\n"
                         f"{formatted_context}\n"
                     )
             

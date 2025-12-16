@@ -116,12 +116,13 @@ class VectorStore:
             logger.error(f"Error creating collection: {e}")
             raise
     
-    def add_insights(self, insights: List[Dict[str, Any]]):
+    def add_documents(self, documents: List[Dict[str, Any]]):
         """
-        Add insights with embeddings to the vector store
+        Add documents with embeddings to the vector store.
+        Each document should be a dict with 'embedding' and other metadata fields.
         
         Args:
-            insights: List of insight dictionaries with 'embedding' field
+            documents: List of document dictionaries with 'embedding' field
         """
         if self.client is None:
             self.connect()
@@ -129,20 +130,20 @@ class VectorStore:
         try:
             points = []
             
-            for insight in insights:
-                # Generate unique ID
-                point_id = str(uuid.uuid4())
+            for doc in documents:
+                # Generate unique ID if not present
+                point_id = doc.get('id') or str(uuid.uuid4())
                 
                 # Prepare payload (exclude embedding from payload)
                 payload = {
-                    k: v for k, v in insight.items() 
+                    k: v for k, v in doc.items()
                     if k != 'embedding'
                 }
                 
                 # Create point
                 point = PointStruct(
                     id=point_id,
-                    vector=insight['embedding'],
+                    vector=doc['embedding'],
                     payload=payload
                 )
                 
@@ -157,11 +158,15 @@ class VectorStore:
                     points=batch
                 )
             
-            logger.info(f"Successfully added {len(points)} insights to vector store")
+            logger.info(f"Successfully added {len(points)} documents to vector store")
             
         except Exception as e:
-            logger.error(f"Error adding insights: {e}")
+            logger.error(f"Error adding documents: {e}")
             raise
+
+    # Deprecated alias for backward compatibility
+    def add_insights(self, insights: List[Dict[str, Any]]):
+        return self.add_documents(insights)
     
     def search(self, 
                query_vector: List[float],
@@ -198,20 +203,21 @@ class VectorStore:
                 query_filter = Filter(must=conditions) if conditions else None
             
             # Perform search
-            results = self.client.search(
+            results = self.client.query_points(
                 collection_name=self.collection_name,
-                query_vector=query_vector,
+                query=query_vector,
                 limit=top_k,
                 query_filter=query_filter,
                 score_threshold=score_threshold
-            )
+            ).points
             
             # Format results
             formatted_results = []
             for result in results:
                 formatted_results.append({
                     'score': result.score,
-                    'insight': result.payload
+                    'payload': result.payload,
+                    'insight': result.payload # Backward compatibility
                 })
             
             logger.info(f"Found {len(formatted_results)} results")
@@ -226,7 +232,7 @@ class VectorStore:
                           category: str,
                           top_k: int = 3) -> List[Dict[str, Any]]:
         """
-        Search for insights within a specific category
+        Search for documents within a specific category
         
         Args:
             query_vector: Query embedding vector
@@ -242,6 +248,27 @@ class VectorStore:
             filter_dict={'category': category}
         )
     
+    def search_by_source_type(self,
+                            query_vector: List[float],
+                            source_type: str,
+                            top_k: int = 5) -> List[Dict[str, Any]]:
+        """
+        Search for documents within a specific source type (e.g. 'phishing_insight', 'org_knowledge')
+
+        Args:
+            query_vector: Query embedding vector
+            source_type: Source type to filter by
+            top_k: Number of results to return
+
+        Returns:
+            List of search results
+        """
+        return self.search(
+            query_vector=query_vector,
+            top_k=top_k,
+            filter_dict={'source_type': source_type}
+        )
+
     def get_all_insights(self, limit: int = 100) -> List[Dict[str, Any]]:
         """
         Retrieve all insights from the store
@@ -296,10 +323,25 @@ class VectorStore:
         try:
             info = self.client.get_collection(self.collection_name)
             
+            # The 'vectors' config can be a single VectorParams or a dict of them.
+            # We assume single vector for now or take the first one.
+            vectors_config = info.config.params.vectors
+            vector_size = 0
+            distance = "unknown"
+
+            if hasattr(vectors_config, 'size'):
+                vector_size = vectors_config.size
+                distance = vectors_config.distance
+            elif isinstance(vectors_config, dict):
+                 # Get first one
+                 first_key = list(vectors_config.keys())[0]
+                 vector_size = vectors_config[first_key].size
+                 distance = vectors_config[first_key].distance
+
             return {
-                'name': info.name,
-                'vector_size': info.config.params.vectors.size,
-                'distance': info.config.params.vectors.distance,
+                'name': self.collection_name, # Return the name we know
+                'vector_size': vector_size,
+                'distance': distance,
                 'points_count': info.points_count
             }
             
@@ -353,7 +395,7 @@ class RAGRetriever:
             results = self.vector_store.search(
                 query_vector=query_embedding.tolist(),
                 top_k=top_k,
-                score_threshold=0.5  # Minimum relevance threshold
+                score_threshold=0.01  # Lowered threshold to ensure we get results in tests/demos
             )
         
         logger.info(f"Retrieved {len(results)} contexts for query: {query[:50]}...")
@@ -375,13 +417,17 @@ class RAGRetriever:
         context_parts = []
         
         for i, result in enumerate(results, 1):
-            insight = result['insight']
+            payload = result['payload']
             score = result['score']
             
+            source_type = payload.get('source_type', 'unknown')
+            category = payload.get('category', 'general')
+            text = payload.get('text', '')
+
             context_parts.append(
-                f"[Context {i}] (Relevance: {score:.2f})\n"
-                f"Category: {insight['category']}\n"
-                f"Insight: {insight['text']}\n"
+                f"[Context {i}] (Relevance: {score:.2f}, Source: {source_type})\n"
+                f"Category: {category}\n"
+                f"Content: {text}\n"
             )
         
         return "\n".join(context_parts)

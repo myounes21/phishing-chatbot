@@ -84,6 +84,7 @@ class InsightGenerator:
             insight = {
                 'insight_id': f"DEPT_{dept.upper()}_001",
                 'category': 'department_vulnerability',
+                'source_type': 'phishing_insight',
                 'department': dept,
                 'severity': severity,
                 'click_rate': rate,
@@ -154,6 +155,7 @@ class InsightGenerator:
             insight = {
                 'insight_id': f"TMPL_{template.replace(' ', '_').upper()}_001",
                 'category': 'template_effectiveness',
+                'source_type': 'phishing_insight',
                 'template': template,
                 'effectiveness': effectiveness,
                 'click_rate': click_rate,
@@ -228,6 +230,7 @@ class InsightGenerator:
             insight = {
                 'insight_id': f"USER_{user_id}_RISK_001",
                 'category': 'user_risk_profile',
+                'source_type': 'phishing_insight',
                 'user_id': user_id,
                 'risk_level': risk_level,
                 'risk_score': risk_score,
@@ -289,6 +292,7 @@ class InsightGenerator:
         behavioral_insight = {
             'insight_id': 'BEHAVIORAL_ORG_001',
             'category': 'behavioral_insights',
+            'source_type': 'phishing_insight',
             'text': insight_text,
             'metadata': response_stats
         }
@@ -318,6 +322,7 @@ class InsightGenerator:
             comparison_insight = {
                 'insight_id': 'BEHAVIORAL_COMP_001',
                 'category': 'behavioral_insights',
+                'source_type': 'phishing_insight',
                 'text': comparison_text,
                 'metadata': {
                     'fastest_dept': fastest_dept,
