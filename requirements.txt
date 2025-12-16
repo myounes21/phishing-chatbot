@@ -1,31 +1,56 @@
-# LLM & AI
-groq
-sentence-transformers
-# torch
+# ==========================================
+# Core AI/ML Dependencies
+# ==========================================
+groq>=0.4.0
+sentence-transformers>=2.2.0
+torch>=2.0.0
+
+# ==========================================
 # Vector Database
-qdrant-client
+# ==========================================
+qdrant-client>=1.7.0
 
+# ==========================================
 # Data Processing
-pandas
-numpy
+# ==========================================
+pandas>=2.0.0
+numpy>=1.24.0
 
-# Web Framework
-fastapi
-uvicorn
-streamlit
+# ==========================================
+# Web Framework & API
+# ==========================================
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.5.0
+python-multipart>=0.0.6
 
+# ==========================================
+# Configuration & Environment
+# ==========================================
+python-dotenv>=1.0.0
+pyyaml>=6.0
+
+# ==========================================
 # Utilities
-python-dotenv
-pydantic
-pyyaml
-requests
+# ==========================================
+requests>=2.31.0
+aiofiles>=23.2.0
 
-# Development
-pytest
-jupyter
-black
-flake8
+# ==========================================
+# Development & Testing (Optional)
+# ==========================================
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+httpx>=0.25.0  # For testing async endpoints
+black>=23.12.0
+flake8>=7.0.0
 
-# Optional: API clients
-openai  # For comparison testing
-anthropic  # For comparison testing
+# ==========================================
+# Monitoring & Logging (Optional)
+# ==========================================
+python-json-logger>=2.0.7
+
+# ==========================================
+# Cloud Deployment (Optional but Recommended)
+# ==========================================
+gunicorn>=21.2.0  # Production WSGI server

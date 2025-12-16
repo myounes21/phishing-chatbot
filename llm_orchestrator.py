@@ -1,11 +1,11 @@
 """
-LLM Orchestrator Module
-Handles query understanding and tool orchestration using Groq LLM
+Enhanced LLM Orchestrator Module
+Generates detailed, well-structured responses using Groq LLM and RAG
 """
 
 import os
 import json
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from groq import Groq
 import logging
 
@@ -15,380 +15,328 @@ logger = logging.getLogger(__name__)
 
 class LLMOrchestrator:
     """
-    Orchestrates query processing using Groq LLM and appropriate tools
+    Enhanced orchestrator that generates detailed, human-friendly responses
+    Supports multi-domain queries across phishing, company, and general knowledge
     """
     
     def __init__(self, 
                  api_key: Optional[str] = None,
                  model: str = "llama-3.3-70b-versatile",
-                 data_processor=None,
-                 rag_retriever=None):
+                 rag_retriever=None,
+                 data_processor=None):
         """
         Initialize the LLM orchestrator
         
         Args:
-            api_key: Groq API key (or use GROQ_API_KEY env variable)
-            model: Groq model to use (default: llama-3.3-70b-versatile)
-                   Other options: llama-3.1-70b-versatile, llama-3.1-8b-instant
-            data_processor: PhishingDataProcessor instance
+            api_key: Groq API key
+            model: Groq model to use
             rag_retriever: RAGRetriever instance
+            data_processor: Optional PhishingDataProcessor for quantitative queries
         """
         self.api_key = api_key or os.getenv('GROQ_API_KEY')
         if not self.api_key:
-            raise ValueError("Groq API key required. Set GROQ_API_KEY environment variable.")
+            raise ValueError("Groq API key required")
         
         self.model = model
         self.client = Groq(api_key=self.api_key)
-        self.data_processor = data_processor
         self.rag_retriever = rag_retriever
+        self.data_processor = data_processor
         self.conversation_history = []
         
     def _create_system_prompt(self) -> str:
-        """Create the system prompt for the LLM"""
-        return """You are a versatile AI assistant specializing in Phishing Campaign Analysis and Organizational Knowledge.
+        """Create comprehensive system prompt for detailed responses"""
+        return """You are an expert AI assistant specializing in:
+1. **Phishing Campaign Analysis** - Analyzing security simulations and user behavior
+2. **Organizational Knowledge** - Answering questions about the company and its services
+3. **Cybersecurity Education** - Explaining phishing tactics, defenses, and best practices
 
-You have access to two types of data sources:
+**Response Guidelines:**
 
-1. **Phishing Campaign Data (Quantitative & Analytical)**
-   - Accessed via **Pandas Tool** for exact numbers, stats, lists, and rankings.
-   - Accessed via **RAG Tool** (category: `phishing_insight`) for qualitative insights, explanations, and behavioral patterns.
-   - *Use when asking about:* Click rates, risky users, department performance, template stats, simulation results.
+1. **Comprehensive & Detailed**
+   - Provide LONG, well-structured responses (300-800 words when appropriate)
+   - Break down complex topics into clear sections
+   - Include specific examples and actionable insights
+   - Use analogies and explanations for clarity
 
-2. **Knowledge Base (Textual & Informational)**
-   - Accessed via **RAG Tool** only.
-   - Categories:
-     - `org_knowledge`: Company policies, services, "who we are", internal procedures.
-     - `general_knowledge`: General cybersecurity concepts, phishing definitions, best practices, educational content.
-   - *Use when asking about:* Company info, security policies, definitions of terms, general advice.
+2. **Professional Formatting**
+   - Use markdown formatting: headers, bullet points, numbered lists
+   - Organize information logically with clear sections
+   - Highlight key points and statistics
+   - Include relevant context and background
 
-**Instructions:**
-- **Accuracy First:** Base your answers ONLY on the provided data/context. Do not hallucinate.
-- **Data Selection:**
-  - For specific numbers/stats about the *current campaign*, prioritize the **Pandas Tool**.
-  - For explanations of those numbers, use **RAG (phishing_insight)**.
-  - For general questions or company info, use **RAG (org_knowledge / general_knowledge)**.
-- **Response Style:** Professional, clear, and actionable. Use bullet points for lists.
+3. **Data-Driven Analysis**
+   - Base all phishing analysis on provided data/context
+   - Cite specific numbers, percentages, and metrics
+   - Explain WHY patterns exist, not just WHAT they are
+   - Connect insights to actionable recommendations
 
-Available query types for Pandas tool:
-- click_rate, department_click_rate, template_effectiveness, high_risk_users, response_times, department_summary, full_report
+4. **Educational Approach**
+   - Explain concepts thoroughly for non-technical audiences
+   - Provide background information when relevant
+   - Offer practical advice and next steps
+   - Anticipate follow-up questions
+
+5. **Tone & Style**
+   - Professional but approachable
+   - Clear and easy to understand
+   - Empathetic when discussing vulnerabilities
+   - Solution-focused and constructive
+
+**Knowledge Domains:**
+
+- **Phishing Campaigns**: Click rates, vulnerable users/departments, template effectiveness, behavioral patterns, risk scoring
+- **Company Info**: Mission, values, services, team, history, achievements
+- **Phishing General**: Tactics (urgency, authority, fear), defense strategies, awareness training, incident response
+
+**Important**: Always structure responses with:
+- Opening summary
+- Detailed analysis with subsections
+- Key takeaways or recommendations
+- Closing with next steps or further assistance offer
 """
 
-    def _classify_query(self, query: str) -> Dict[str, Any]:
+    def _detect_query_type(self, query: str) -> Dict[str, Any]:
         """
-        Classify the query to determine which tools to use
+        Detect query type and determine which collections to search
         
         Args:
             query: User query
             
         Returns:
-            Dictionary with classification results
+            Dictionary with query metadata
         """
-        classification_prompt = f"""Classify this query and determine which tools are needed:
-
-Query: "{query}"
-
-Respond in JSON format:
-{{
-    "needs_pandas": true/false,
-    "needs_rag": true/false,
-    "query_type": "quantitative/qualitative/synthesis",
-    "pandas_query_type": "click_rate/template_effectiveness/etc or null",
-    "parameters": {{}} // Any specific parameters needed
-}}
-
-Examples:
-- "What is the click rate for Finance?" -> {{"needs_pandas": true, "needs_rag": false, "query_type": "quantitative"}}
-- "Why did the urgent template work well?" -> {{"needs_pandas": false, "needs_rag": true, "query_type": "qualitative"}}
-- "Who are the riskiest users and why?" -> {{"needs_pandas": true, "needs_rag": true, "query_type": "synthesis"}}
-"""
+        query_lower = query.lower()
         
+        # Detection keywords
+        phishing_keywords = ['click rate', 'department', 'vulnerable', 'risk', 'template', 
+                            'user', 'campaign', 'phishing simulation', 'security awareness']
+        company_keywords = ['who are we', 'what do', 'company', 'organization', 'mission',
+                           'values', 'services', 'about us', 'team']
+        general_keywords = ['what is phishing', 'how to', 'defense', 'tactics', 'prevent',
+                           'protect', 'awareness', 'training', 'best practices']
+        
+        # Count keyword matches
+        phishing_score = sum(1 for kw in phishing_keywords if kw in query_lower)
+        company_score = sum(1 for kw in company_keywords if kw in query_lower)
+        general_score = sum(1 for kw in general_keywords if kw in query_lower)
+        
+        # Determine primary type
+        scores = {
+            'phishing_insights': phishing_score,
+            'company_knowledge': company_score,
+            'phishing_general': general_score
+        }
+        
+        primary_type = max(scores, key=scores.get)
+        
+        # If scores are similar, search all
+        search_all = max(scores.values()) - min(scores.values()) <= 1
+        
+        return {
+            'primary_collection': primary_type if not search_all else None,
+            'search_all_collections': search_all,
+            'confidence': max(scores.values()),
+            'query_complexity': 'complex' if len(query.split()) > 15 else 'simple'
+        }
+    
+    def process_query(self, 
+                     query: str,
+                     collection: Optional[str] = None,
+                     include_sources: bool = True) -> Tuple[str, Optional[List[Dict]]]:
+        """
+        Process user query and generate detailed response
+        
+        Args:
+            query: User query
+            collection: Specific collection to search (or None for auto-detect)
+            include_sources: Whether to return source documents
+            
+        Returns:
+            Tuple of (response_text, sources)
+        """
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": "You are a query classifier. Respond only with valid JSON."},
-                    {"role": "user", "content": classification_prompt}
-                ],
-                temperature=0.1,
-                max_tokens=500
+            logger.info(f"🤔 Processing query: {query[:100]}...")
+            
+            # Detect query type if collection not specified
+            if not collection:
+                query_metadata = self._detect_query_type(query)
+                collection = query_metadata['primary_collection']
+                logger.info(f"📊 Detected primary collection: {collection}")
+            
+            # Retrieve relevant context
+            logger.info("🔍 Retrieving context from vector database...")
+            contexts = self.rag_retriever.retrieve_context(
+                query=query,
+                collection=collection,
+                top_k=8  # Get more contexts for comprehensive responses
             )
             
-            result = json.loads(response.choices[0].message.content)
-            logger.info(f"Query classified as: {result['query_type']}")
-            return result
+            if not contexts:
+                logger.warning("⚠️ No contexts found, using general knowledge")
+                contexts = []
+            
+            # Format context for LLM
+            formatted_context = self.rag_retriever.format_context_for_llm(contexts)
+            
+            # Generate response
+            logger.info("🤖 Generating detailed response...")
+            response_text = self._generate_detailed_response(query, formatted_context)
+            
+            # Prepare sources for return
+            sources = None
+            if include_sources and contexts:
+                sources = [
+                    {
+                        'content': ctx['payload'].get('text', '')[:200] + '...',
+                        'relevance': ctx['score'],
+                        'collection': ctx.get('collection', 'unknown'),
+                        'title': ctx['payload'].get('title', ctx['payload'].get('campaign_name', 'Untitled'))
+                    }
+                    for ctx in contexts[:5]  # Return top 5 sources
+                ]
+            
+            logger.info("✅ Response generated successfully")
+            return response_text, sources
             
         except Exception as e:
-            logger.error(f"Error classifying query: {e}")
-            # Default fallback
-            return {
-                "needs_pandas": True,
-                "needs_rag": False,
-                "query_type": "quantitative"
-            }
+            logger.error(f"❌ Error processing query: {e}")
+            return f"I encountered an error processing your query: {str(e)}", None
     
-    def _execute_pandas_query(self, query_type: str, parameters: Dict[str, Any]) -> Any:
+    def _generate_detailed_response(self, query: str, context: str) -> str:
         """
-        Execute a Pandas query
-        
-        Args:
-            query_type: Type of query to execute
-            parameters: Query parameters
-            
-        Returns:
-            Query results
-        """
-        if not self.data_processor:
-            return {"error": "Data processor not available"}
-        
-        try:
-            result = self.data_processor.query_data(query_type, **parameters)
-            logger.info(f"Executed Pandas query: {query_type}")
-            return result
-            
-        except Exception as e:
-            logger.error(f"Error executing Pandas query: {e}")
-            return {"error": str(e)}
-    
-    def _execute_rag_query(self, query: str, category: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
-        Execute a RAG query
+        Generate a detailed, well-structured response
         
         Args:
             query: User query
-            category: Optional category filter
+            context: Formatted context from RAG
             
         Returns:
-            Retrieved contexts
+            Generated response text
         """
-        if not self.rag_retriever:
-            return [{"error": "RAG retriever not available"}]
-        
-        try:
-            contexts = self.rag_retriever.retrieve_context(query, top_k=5, category=category)
-            logger.info(f"Retrieved {len(contexts)} contexts")
-            return contexts
-            
-        except Exception as e:
-            logger.error(f"Error executing RAG query: {e}")
-            return [{"error": str(e)}]
-    
-    def _format_data_for_llm(self, data: Any) -> str:
-        """
-        Format data for LLM consumption
-        
-        Args:
-            data: Data to format (dict, dataframe, list, etc.)
-            
-        Returns:
-            Formatted string
-        """
-        import pandas as pd
-        
-        if isinstance(data, pd.DataFrame):
-            return data.to_string()
-        elif isinstance(data, dict):
-            return json.dumps(data, indent=2)
-        elif isinstance(data, list):
-            return json.dumps(data, indent=2)
-        else:
-            return str(data)
-    
-    def process_query(self, query: str) -> str:
-        """
-        Process user query and generate response
-        
-        Args:
-            query: User query
-            
-        Returns:
-            Response string
-        """
-        try:
-            # Classify query
-            classification = self._classify_query(query)
-            
-            # Collect data from tools
-            context_parts = []
-            
-            if classification.get('needs_pandas', False):
-                pandas_query_type = classification.get('pandas_query_type', 'full_report')
-                parameters = classification.get('parameters', {})
-                
-                pandas_result = self._execute_pandas_query(pandas_query_type, parameters)
-                
-                context_parts.append(
-                    f"=== QUANTITATIVE DATA ===\n"
-                    f"{self._format_data_for_llm(pandas_result)}\n"
-                )
-            
-            if classification.get('needs_rag', False):
-                # We can use the classified category to narrow down search if needed
-                # For now, we might want to search broadly or specific based on implementation
-                # The current RAG retriever supports 'category' which matches our 'source_type' or 'category' field?
-                # Let's assume the classifier's 'rag_category' maps to the 'source_type' or 'category' in Qdrant
-
-                rag_category = classification.get('rag_category')
-                # If rag_category is one of our known types, we pass it.
-                # Note: vector_store.py has `search_by_source_type` and `search_by_category`.
-                # We should probably align these.
-
-                # In vector_store.py we have `search_by_category` filtering on 'category' field.
-                # In document_processor.py we set 'category' = doc_type ('org_knowledge', etc).
-                # In insight_generator.py we set 'category' = 'department_vulnerability' etc, and 'source_type' = 'phishing_insight'.
-
-                # So:
-                # If asking about phishing insights, we might want to filter by source_type='phishing_insight'
-                # If asking about org knowledge, filter by category='org_knowledge'
-
-                # To simplify, let's just pass the query to RAG. The RAG retriever in `api_backend` calls `search_by_category` if category is passed.
-                # But our categories are mixed (some are 'department_vulnerability', some are 'org_knowledge').
-
-                # Let's just search broadly for now, OR:
-                # If the classifier is confident about 'org_knowledge' or 'general_knowledge', we pass that as category.
-                # If it's 'phishing_insight', we might want to search by source_type, but `retrieve_context` only takes `category`.
-
-                # Let's adjust based on what we have.
-                # The current `retrieve_context` uses `search_by_category`.
-                # If I pass 'org_knowledge', it will work for those docs.
-                # If I pass 'phishing_insight', it won't work because phishing insights have granular categories.
-
-                # Better approach: Just search without filter, let similarity decide?
-                # Or update `retrieve_context` to handle this.
-                # For this iteration, I will just search without category to let semantic similarity work,
-                # unless I want to be strict.
-
-                # Let's try passing it if it is org/general, but ignore if phishing_insight
-
-                category_filter = None
-                if rag_category in ['org_knowledge', 'general_knowledge']:
-                    category_filter = rag_category
-
-                rag_results = self._execute_rag_query(query, category=category_filter)
-                
-                if rag_results and 'error' not in rag_results[0]:
-                    formatted_context = self.rag_retriever.format_context_for_llm(rag_results)
-                    context_parts.append(
-                        f"=== QUALITATIVE INSIGHTS / KNOWLEDGE ===\n"
-                        f"{formatted_context}\n"
-                    )
-            
-            # Combine contexts
-            full_context = "\n".join(context_parts) if context_parts else "No specific data available."
-            
-            # Generate response using LLM
-            response = self._generate_response(query, full_context)
-            
-            # Add to conversation history
-            self.conversation_history.append({
-                "query": query,
-                "response": response
-            })
-            
-            return response
-            
-        except Exception as e:
-            logger.error(f"Error processing query: {e}")
-            return f"I encountered an error processing your query: {str(e)}"
-    
-    def _generate_response(self, query: str, context: str) -> str:
-        """
-        Generate final response using LLM
-        
-        Args:
-            query: User query
-            context: Collected context from tools
-            
-        Returns:
-            Generated response
-        """
+        # Build messages
         messages = [
-            {"role": "system", "content": self._create_system_prompt()},
+            {"role": "system", "content": self._create_system_prompt()}
         ]
         
-        # Add recent conversation history (last 3 exchanges)
-        for exchange in self.conversation_history[-3:]:
+        # Add recent conversation history (last 2 exchanges)
+        for exchange in self.conversation_history[-2:]:
             messages.append({"role": "user", "content": exchange["query"]})
             messages.append({"role": "assistant", "content": exchange["response"]})
         
         # Add current query with context
-        user_message = f"""Query: {query}
+        user_message = f"""User Question: {query}
 
-Available Data and Context:
+Retrieved Context and Data:
 {context}
 
-Please provide a clear, actionable response based on this data. Use specific numbers and insights from the context."""
-        
+Please provide a comprehensive, detailed response that:
+1. Directly answers the question
+2. Explains the reasoning and insights behind the data
+3. Provides actionable recommendations when appropriate
+4. Uses clear structure with headers and bullet points
+5. Is thorough and educational (aim for 300-800 words)
+
+Make sure to cite specific data points from the context when relevant."""
+
         messages.append({"role": "user", "content": user_message})
         
         try:
+            # Call Groq API with increased token limit for detailed responses
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
-                temperature=0.3,
-                max_tokens=2048
+                temperature=0.4,  # Slightly higher for more natural language
+                max_tokens=4096,  # Allow for long, detailed responses
+                top_p=0.9
             )
             
-            return response.choices[0].message.content
+            response_text = response.choices[0].message.content
+            
+            # Add to conversation history
+            self.conversation_history.append({
+                "query": query,
+                "response": response_text
+            })
+            
+            # Keep history manageable
+            if len(self.conversation_history) > 10:
+                self.conversation_history = self.conversation_history[-10:]
+            
+            return response_text
             
         except Exception as e:
-            logger.error(f"Error generating response: {e}")
-            return f"Error generating response: {str(e)}"
+            logger.error(f"❌ Error calling Groq API: {e}")
+            raise
+    
+    def generate_summary(self, campaign_id: Optional[str] = None) -> str:
+        """
+        Generate a comprehensive campaign summary
+        
+        Args:
+            campaign_id: Specific campaign to summarize
+            
+        Returns:
+            Detailed summary text
+        """
+        query = f"Provide a comprehensive summary and analysis of campaign {campaign_id}" if campaign_id else "Provide a comprehensive summary of all phishing campaigns"
+        
+        response, _ = self.process_query(query, collection="phishing_insights", include_sources=False)
+        return response
+    
+    def explain_concept(self, concept: str) -> str:
+        """
+        Explain a phishing or security concept in detail
+        
+        Args:
+            concept: Concept to explain
+            
+        Returns:
+            Detailed explanation
+        """
+        query = f"Explain in detail: {concept}"
+        response, _ = self.process_query(query, collection="phishing_general", include_sources=False)
+        return response
+    
+    def company_info(self, question: str) -> str:
+        """
+        Answer questions about the company
+        
+        Args:
+            question: Question about the company
+            
+        Returns:
+            Detailed answer
+        """
+        response, _ = self.process_query(question, collection="company_knowledge", include_sources=False)
+        return response
     
     def clear_history(self):
         """Clear conversation history"""
         self.conversation_history = []
-        logger.info("Conversation history cleared")
+        logger.info("🗑️ Conversation history cleared")
 
 
 if __name__ == "__main__":
-    # Test the orchestrator (requires API key)
-    from data_processor import PhishingDataProcessor
-    from insight_generator import InsightGenerator
-    from embeddings import EmbeddingGenerator
-    from vector_store import VectorStore, RAGRetriever
+    # Test the orchestrator
+    print("Note: This test requires GROQ_API_KEY environment variable")
     
-    print("Note: This test requires GROQ_API_KEY environment variable to be set.")
+    api_key = os.getenv('GROQ_API_KEY')
+    if not api_key:
+        print("❌ GROQ_API_KEY not found")
+        exit(1)
     
-    if not os.getenv('GROQ_API_KEY'):
-        print("GROQ_API_KEY not found. Please set it to test the orchestrator.")
-        print("\nExample usage:")
-        print("  export GROQ_API_KEY='your-api-key-here'")
-        print("  python llm_orchestrator.py")
-    else:
-        # Setup components
-        processor = PhishingDataProcessor("sample_phishing_data.csv")
-        processor.load_data()
-        
-        generator = InsightGenerator(processor)
-        insights = generator.generate_all_insights()
-        
-        embedding_gen = EmbeddingGenerator()
-        insights_with_embeddings = embedding_gen.encode_insights(insights)
-        
-        vector_store = VectorStore()
-        vector_store.connect()
-        vector_store.create_collection(recreate=True)
-        vector_store.add_insights(insights_with_embeddings)
-        
-        rag_retriever = RAGRetriever(vector_store, embedding_gen)
-        
-        # Create orchestrator
-        orchestrator = LLMOrchestrator(
-            data_processor=processor,
-            rag_retriever=rag_retriever
-        )
-        
-        # Test queries
-        test_queries = [
-            "What is the click rate for Finance department?",
-            "Why is Finance vulnerable to phishing?",
-            "Who are the top 5 riskiest users and why?"
-        ]
-        
-        for query in test_queries:
-            print(f"\n{'='*80}")
-            print(f"Query: {query}")
-            print(f"{'='*80}")
-            
-            response = orchestrator.process_query(query)
-            print(response)
+    # This is a minimal test - full test requires RAG retriever
+    orchestrator = LLMOrchestrator(api_key=api_key)
+    print("✅ LLM Orchestrator initialized")
+    
+    # Test query detection
+    test_queries = [
+        "What is the click rate for Finance department?",
+        "Who are we as a company?",
+        "How can employees defend against phishing?"
+    ]
+    
+    for query in test_queries:
+        metadata = orchestrator._detect_query_type(query)
+        print(f"\nQuery: {query}")
+        print(f"Primary Collection: {metadata['primary_collection']}")

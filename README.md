@@ -1,98 +1,154 @@
-# 🎣 Intelligent Phishing Campaign Analyzer
+# 🎣 Phishing Campaign Analyzer & Knowledge Chatbot
 
-Transform complex phishing simulation data into actionable insights using AI-powered analytics.
+**Cloud-Native RAG System for Cybersecurity Intelligence**
 
-## 🌟 Overview
+A fully cloud-based, intelligent chatbot and analytics platform that provides comprehensive insights into phishing campaigns, organizational knowledge, and cybersecurity education—powered by modern AI and deployed without Docker dependencies.
 
-This intelligent chatbot system analyzes phishing campaign results and provides security teams with instant, natural language insights. Built with **Groq LLM**, **sentence-transformers**, and **Qdrant vector database**, it combines quantitative analysis with qualitative intelligence.
+---
 
-### Key Features
+## 🌟 Key Features
 
-- **📊 Quantitative Analysis**: Click rates, risk scores, response times, and statistical metrics
-- **🧠 Qualitative Insights**: Behavioral patterns, psychological triggers, and contextual explanations
-- **🤖 Natural Language Interface**: Ask questions in plain English, get clear answers
-- **🔍 RAG-Powered**: Semantic search for relevant insights and context
-- **⚡ Fast & Efficient**: Groq's high-speed LLM inference
-- **🎯 Actionable Intelligence**: Get recommendations, not just data
+### 1. **Multi-Domain Knowledge Base**
+- **Phishing Campaign Analytics** - Analyze simulation results, identify risks, measure effectiveness
+- **Company Knowledge Assistant** - Answer questions about your organization
+- **Cybersecurity Education** - Explain phishing tactics, defenses, and best practices
 
-## 🏗️ Architecture
+### 2. **Cloud-Native Architecture**
+- **Qdrant Cloud** - Scalable vector database for semantic search
+- **Render Deployment** - HTTPS, auto-scaling, zero infrastructure management
+- **Stateless Design** - No local dependencies, Docker-free
+- **Multiple Collections** - Organized knowledge domains
 
-```
-CSV Data → Pandas Analysis → Insight Generation → Embeddings → Qdrant
-                                                                    ↓
-User Query → Groq LLM → Tool Selection → [Pandas/RAG] → Response
-```
+### 3. **Advanced RAG System**
+- **Retrieval-Augmented Generation** - Combines semantic search with LLM intelligence
+- **Context-Aware Responses** - Retrieves relevant information before generating answers
+- **Multi-Collection Search** - Automatically searches across appropriate knowledge bases
+- **Source Citations** - Transparent references to information sources
 
-### Components
+### 4. **Detailed, Human-Friendly Responses**
+- **Long-Form Answers** - Comprehensive 300-800 word responses when appropriate
+- **Structured Output** - Clear headers, bullet points, and organized sections
+- **Educational Approach** - Explains concepts for non-technical audiences
+- **Actionable Insights** - Practical recommendations and next steps
 
-1. **Data Processor**: Pandas-based quantitative analysis
-2. **Insight Generator**: Converts patterns into human-readable insights
-3. **Embedding Generator**: sentence-transformers for vector creation
-4. **Vector Store**: Qdrant for semantic search
-5. **LLM Orchestrator**: Groq LLM for query understanding and tool selection
-6. **Chatbot Interface**: Streamlit UI or CLI
+### 5. **Easy Integration**
+- **REST API** - Simple JSON endpoints for any frontend
+- **CORS Enabled** - Seamless website integration
+- **Comprehensive Docs** - Auto-generated Swagger/OpenAPI documentation
+- **Multiple Upload Methods** - CSV, text, or API-based data ingestion
+
+---
+
+## 💻 Technology Stack
+
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Backend** | FastAPI | Async REST API server |
+| **LLM** | Groq (Llama 3.3 70B) | Detailed answer generation |
+| **Embeddings** | Sentence-Transformers MiniLM | Text-to-vector conversion |
+| **Vector DB** | Qdrant Cloud | Semantic search & storage |
+| **Deployment** | Render Cloud | HTTPS, scaling, monitoring |
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Python 3.9+
-- Groq API key ([Get one here](https://console.groq.com))
-- Docker & Docker Compose (optional)
+1. **Groq API Key** - [Get it free](https://console.groq.com)
+2. **Qdrant Cloud Account** - [Sign up free](https://qdrant.tech/)
+3. **Python 3.10+** - For local development
 
-### Installation
-
-#### Option 1: Local Installation
+### Local Development Setup
 
 ```bash
-# Clone or download the project
-cd phishing-chatbot
+# 1. Clone the repository
+git clone https://github.com/yourusername/phishing-analyzer.git
+cd phishing-analyzer
 
-# Install dependencies
+# 2. Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# 3. Install dependencies
 pip install -r requirements.txt
 
-# Set your API key in .env file (one-time setup)
-echo "GROQ_API_KEY=your_api_key_here" > .env
+# 4. Configure environment variables
+cp .env.example .env
+# Edit .env and add your API keys:
+# - GROQ_API_KEY
+# - QDRANT_URL
+# - QDRANT_API_KEY
 
-# Run Qdrant (optional - will use in-memory if skipped)
-docker run -p 6333:6333 qdrant/qdrant
+# 5. Run the server
+uvicorn main:app --reload
 
-# Launch the Streamlit app
-streamlit run chatbot_app.py
-# ✨ API key auto-loads from .env - no manual entry needed!
-
-# OR use the CLI
-python chatbot_cli.py --csv sample_phishing_data.csv
+# 6. Open your browser
+# API: http://localhost:8000
+# Docs: http://localhost:8000/docs
 ```
 
-**🎉 New Feature**: API key automatically loads from `.env` file - no need to type it every time!
+### Cloud Deployment (Render)
 
-#### Option 2: Docker Deployment
+See **[RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md)** for detailed deployment guide.
+
+**Quick Deploy:**
+1. Push code to GitHub
+2. Create new Web Service on Render
+3. Connect repository
+4. Add environment variables
+5. Deploy! 🚀
+
+Your API will be live at: `https://your-app.onrender.com`
+
+---
+
+## 📊 Usage Examples
+
+### 1. Query the API
+
+**Ask about phishing campaigns:**
+```bash
+curl -X POST "https://your-app.onrender.com/query_agent" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What is the click rate for Finance department?",
+    "include_sources": true
+  }'
+```
+
+**Response:**
+```json
+{
+  "query": "What is the click rate for Finance department?",
+  "response": "# Finance Department Click Rate Analysis\n\nBased on the recent phishing simulation campaign, the Finance department shows a **32.5% click rate**, which is significantly higher than the organization average of 24%...\n\n## Key Findings\n\n- **6 out of 20 emails** were clicked by Finance employees\n- **Average response time**: 23 seconds (indicating impulsive behavior)\n- **Most effective template**: \"Urgent Password Reset\"\n\n## Risk Assessment\n\nThis high click rate categorizes Finance as a **high-risk department**...",
+  "sources": [
+    {
+      "content": "The Finance department shows a 32.5% click rate...",
+      "relevance": 0.94,
+      "collection": "phishing_insights",
+      "title": "Finance Department Vulnerability"
+    }
+  ],
+  "metadata": {
+    "query_length": 45,
+    "response_length": 678,
+    "sources_count": 3,
+    "collection_used": "phishing_insights"
+  }
+}
+```
+
+### 2. Upload Phishing Campaign Data
 
 ```bash
-# Set environment variables
-export GROQ_API_KEY='your-api-key-here'
-
-# Launch everything with Docker Compose
-docker-compose up -d
-
-# Access the app at http://localhost:8501
+curl -X POST "https://your-app.onrender.com/upload/phishing_campaign" \
+  -F "file=@campaign_data.csv" \
+  -F "campaign_name=Q4 2024 Security Simulation" \
+  -F "campaign_description=Quarterly awareness training test"
 ```
 
-## 📊 Data Format
-
-Your CSV file should contain these columns:
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `User_ID` | string | Unique identifier for each user |
-| `Department` | string | User's department |
-| `Template` | string | Phishing template used |
-| `Action` | string | User action: Clicked, Ignored, or Reported |
-| `Response_Time_Sec` | integer | Time to respond (0 for ignored) |
-
-### Example CSV
-
+**CSV Format:**
 ```csv
 User_ID,Department,Template,Action,Response_Time_Sec
 U001,Finance,Urgent Password Reset,Clicked,35
@@ -100,280 +156,296 @@ U002,Sales,CEO Impersonation,Ignored,0
 U003,IT,Fake Invoice,Reported,120
 ```
 
-A sample dataset is provided: `sample_phishing_data.csv`
-
-## 💬 Usage Examples
-
-### Streamlit Web Interface
-
-1. Launch the app: `streamlit run chatbot_app.py`
-2. Enter your Groq API key in the sidebar
-3. Upload your CSV file
-4. Click "Initialize System"
-5. Start asking questions!
-
-### Command-Line Interface
-
-#### Interactive Mode
-```bash
-python chatbot_cli.py --csv data.csv --api-key YOUR_KEY
-
-# Then ask questions:
-🤔 You: What is the click rate for Finance?
-🤔 You: Who are the top 5 riskiest users?
-🤔 You: Why did the urgent template work well?
-```
-
-#### Single Query Mode
-```bash
-python chatbot_cli.py \
-  --csv data.csv \
-  --api-key YOUR_KEY \
-  --query "Give me a complete risk assessment"
-```
-
-### Example Queries
-
-**Quantitative Questions:**
-- "What is the click rate for Finance?"
-- "Which department has the highest click rate?"
-- "Who are the top 10 riskiest users?"
-- "What's the average response time?"
-- "How many emails were reported?"
-
-**Qualitative Questions:**
-- "Why is Finance vulnerable to phishing?"
-- "What psychological triggers does the urgent template use?"
-- "How can we improve security awareness training?"
-- "What behavioral patterns do high-risk users show?"
-
-**Synthesis Questions:**
-- "Give me a complete risk assessment"
-- "What are the biggest security gaps?"
-- "Compare departments by security awareness"
-- "What templates should we focus on in training?"
-
-## 🔧 Configuration
-
-Edit `config.yaml` to customize:
-
-```yaml
-groq:
-  model: "llama-3.3-70b-versatile"  # Current recommended model
-  # Alternatives: llama-3.1-70b-versatile, llama-3.1-8b-instant
-  temperature: 0.1
-
-embeddings:
-  model_name: "sentence-transformers/all-MiniLM-L6-v2"
-  dimension: 384
-
-qdrant:
-  host: "localhost"
-  port: 6333
-  collection_name: "phishing_insights"
-
-thresholds:
-  high_risk_click_rate: 0.30
-  fast_response_time: 60
-```
-
-## 📁 Project Structure
-
-```
-phishing-chatbot/
-├── chatbot_app.py          # Streamlit web interface
-├── chatbot_cli.py          # Command-line interface
-├── data_processor.py       # Pandas quantitative analysis
-├── insight_generator.py    # Qualitative insight generation
-├── embeddings.py           # Sentence-transformers embeddings
-├── vector_store.py         # Qdrant vector database
-├── llm_orchestrator.py     # Groq LLM orchestration
-├── config.yaml             # Configuration file
-├── requirements.txt        # Python dependencies
-├── docker-compose.yml      # Docker deployment
-├── Dockerfile              # Container definition
-└── sample_phishing_data.csv # Example dataset
-```
-
-## 🛠️ Development
-
-### Running Tests
+### 3. Add Company Knowledge
 
 ```bash
-# Test individual components
-python data_processor.py
-python insight_generator.py
-python embeddings.py
-python vector_store.py
-
-# Test with your API key
-export GROQ_API_KEY='your-key'
-python llm_orchestrator.py
+curl -X POST "https://your-app.onrender.com/upload/company_knowledge" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "title=About Our Company" \
+  -d "category=about" \
+  -d "content=We are CyberShield Security, founded in 2020. We provide comprehensive cybersecurity training, phishing simulations, and security awareness programs to organizations worldwide..."
 ```
 
-### Adding Custom Insights
+### 4. Add General Phishing Knowledge
 
-Edit `insight_generator.py` to add new insight categories:
-
-```python
-def generate_custom_insights(self) -> List[Dict[str, Any]]:
-    # Your custom logic here
-    insights = []
-    # ...
-    return insights
+```bash
+curl -X POST "https://your-app.onrender.com/upload/phishing_general" \
+  -d "title=Common Phishing Tactics" \
+  -d "topic=tactics" \
+  -d "content=Phishing attacks commonly exploit psychological triggers: **Urgency** creates panic ('Your account will be closed'), **Authority** impersonates executives ('CEO needs this immediately'), **Fear** threatens consequences ('Suspicious activity detected')..."
 ```
 
-### Customizing Prompts
+### 5. Check System Health
 
-The system prompt can be modified in `llm_orchestrator.py`:
-
-```python
-def _create_system_prompt(self) -> str:
-    return """Your custom system prompt..."""
+```bash
+curl https://your-app.onrender.com/health
 ```
 
-## 🔒 Security Considerations
+---
 
-- **API Keys**: Never commit API keys. Use environment variables.
-- **Data Privacy**: Campaign data may contain sensitive information. Use secure storage.
-- **Access Control**: Implement authentication for production deployments.
-- **Data Retention**: Configure appropriate data retention policies.
+## 📂 Project Structure
 
-## 🚀 Performance
+```
+phishing-analyzer/
+├── main.py                    # FastAPI application & routes
+├── data_processor.py          # Phishing campaign data analysis
+├── insight_generator.py       # Generates analytical insights
+├── embeddings.py              # Text-to-vector embedding
+├── vector_store.py            # Qdrant Cloud integration
+├── llm_orchestrator.py        # LLM query processing
+├── requirements.txt           # Python dependencies
+├── .env.example               # Configuration template
+├── README.md                  # This file
+├── RENDER_DEPLOYMENT.md       # Deployment guide
+└── sample_phishing_data.csv   # Example dataset
+```
 
-- **Query Response Time**: < 2 seconds average
+---
+
+## 🎯 Use Cases
+
+### For Security Teams
+
+- **Post-Campaign Analysis** - "Give me a comprehensive summary of Q4 campaign results"
+- **Risk Assessment** - "Who are the top 10 riskiest users and why?"
+- **Department Comparison** - "Compare Finance and IT departments for vulnerability"
+- **Template Effectiveness** - "Which phishing templates are most successful?"
+- **Training Recommendations** - "What training should we prioritize based on this data?"
+
+### For Employees
+
+- **Company Information** - "What does our organization do?"
+- **Security Education** - "How can I identify a phishing email?"
+- **Incident Response** - "What should I do if I clicked a phishing link?"
+- **Best Practices** - "What are the best ways to protect against phishing?"
+
+### For Management
+
+- **Executive Summaries** - "Provide an executive summary of our security posture"
+- **ROI Analysis** - "How effective is our security awareness training?"
+- **Trend Analysis** - "How have our click rates changed over the past year?"
+- **Compliance Reporting** - "Generate a compliance report for our phishing program"
+
+---
+
+## 🔒 Security & Privacy
+
+### Data Protection
+- **No Local Storage** - All data in secure Qdrant Cloud
+- **HTTPS Only** - Encrypted communication
+- **API Key Authentication** - Secure Qdrant access
+- **Environment Variables** - Secrets never hardcoded
+
+### Best Practices
+- Rotate API keys every 90 days
+- Use separate collections for sensitive data
+- Implement rate limiting in production
+- Monitor API access logs
+- Regular security audits
+
+---
+
+## 🎨 Frontend Integration Examples
+
+### Simple HTML/JavaScript
+
+```html
+
+    
+    Send
+    
+
+
+
+async function ask() {
+    const query = document.getElementById('query').value;
+    const response = await fetch('https://your-app.onrender.com/query_agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query })
+    });
+    const data = await response.json();
+    document.getElementById('response').innerHTML = data.response;
+}
+
+```
+
+### React Component
+
+```jsx
+import { useState } from 'react';
+
+function Chatbot() {
+    const [query, setQuery] = useState('');
+    const [response, setResponse] = useState('');
+
+    const ask = async () => {
+        const res = await fetch('https://your-app.onrender.com/query_agent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, include_sources: true })
+        });
+        const data = await res.json();
+        setResponse(data.response);
+    };
+
+    return (
+        
+            <input value={query} onChange={e => setQuery(e.target.value)} />
+            Ask
+            
+        
+    );
+}
+```
+
+---
+
+## 📈 Performance & Scaling
+
+### Current Benchmarks
+- **Query Response Time**: 1-3 seconds average
 - **Embedding Generation**: ~1000 texts/second
-- **Vector Search**: Sub-millisecond retrieval
-- **Scalability**: Handles datasets up to 10K records efficiently
+- **Vector Search**: Sub-millisecond
+- **Concurrent Users**: 100+ (with Starter plan)
 
-## 🤝 Contributing
+### Scaling Options
+1. **Vertical Scaling** - Upgrade Render instance size
+2. **Horizontal Scaling** - Multiple instances with load balancer
+3. **Caching** - Add Redis for frequent queries
+4. **CDN** - CloudFlare for static assets
+5. **Database** - Upgrade Qdrant Cloud plan
 
-Contributions are welcome! Areas for improvement:
+---
 
-- Additional insight categories
-- More sophisticated risk scoring
-- Multi-campaign comparison
-- Visualization dashboards
-- Export/reporting features
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**"System not fully initialized"**
+```bash
+# Check logs
+render logs -f your-service-name
+
+# Verify environment variables in Render dashboard
+```
+
+**"Could not connect to Qdrant"**
+```bash
+# Test Qdrant connection
+curl -H "api-key: YOUR_KEY" https://your-cluster.qdrant.io/collections
+```
+
+**Slow responses**
+- Upgrade Render instance
+- Reduce `RAG_TOP_K` in environment variables
+- Check Groq API limits
+
+### Getting Help
+1. Check [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md) troubleshooting section
+2. Review application logs
+3. Test individual API endpoints
+4. Verify all environment variables
+
+---
+
+## 💡 Advanced Features
+
+### Custom Collections
+
+Create domain-specific knowledge bases:
+
+```python
+# Add custom collection
+vector_store.create_collection(
+    collection_name="compliance_docs",
+    recreate=False
+)
+
+# Upload documents
+documents = process_compliance_docs("compliance_data/")
+vector_store.add_documents(
+    documents=documents,
+    collection_name="compliance_docs"
+)
+```
+
+### Multi-Campaign Comparison
+
+```python
+# Query multiple campaigns
+response = query_agent({
+    "query": "Compare Q3 and Q4 campaign results",
+    "collection": "phishing_insights"
+})
+```
+
+### Automated Reporting
+
+```python
+# Schedule daily summaries
+summary = orchestrator.generate_summary(campaign_id="q4_2024")
+send_email(to="security-team@company.com", body=summary)
+```
+
+---
+
+## 🛣️ Roadmap
+
+### Coming Soon
+- [ ] **Authentication** - JWT-based API authentication
+- [ ] **Webhooks** - Real-time notifications
+- [ ] **PDF Export** - Generate campaign reports
+- [ ] **Chart Generation** - Visual analytics
+- [ ] **Slack/Teams Integration** - Chat platform bots
+- [ ] **Multi-Language** - Support for non-English queries
+- [ ] **Advanced Analytics** - ML-based trend prediction
+
+### Future Enhancements
+- [ ] **Custom Model Fine-Tuning** - Industry-specific models
+- [ ] **Real-Time Monitoring** - Live campaign tracking
+- [ ] **Gamification** - Employee security scores
+- [ ] **Mobile App** - Native iOS/Android clients
+
+---
 
 ## 📝 License
 
 This project is provided as-is for educational and commercial use.
 
-## 🙋 Support
+---
 
-For questions or issues:
-1. Check the example queries
-2. Review the configuration
-3. Verify your API key
-4. Check logs for errors
+## 🤝 Contributing
 
-## 🔄 Updates
-
-**Version 1.0.0** (Current)
-- Initial release
-- Groq LLM integration
-- Qdrant vector database
-- Streamlit & CLI interfaces
-- Complete RAG pipeline
-
-## 🎓 How It Works
-
-### 1. Data Processing
-The system loads your CSV and performs statistical analysis using Pandas:
-- Click rates by department, template, user
-- Response time patterns
-- Risk scoring algorithms
-
-### 2. Insight Generation
-Converts numerical patterns into human-readable insights:
-- Department vulnerabilities
-- Template effectiveness
-- User risk profiles
-- Behavioral patterns
-
-### 3. Vector Embedding
-Uses sentence-transformers to create 384-dimensional embeddings:
-- Semantic representation of insights
-- Enables similarity-based retrieval
-
-### 4. Vector Storage
-Stores embeddings in Qdrant for fast semantic search:
-- Cosine similarity matching
-- Category filtering
-- Relevance scoring
-
-### 5. Query Processing
-Groq LLM acts as intelligent orchestrator:
-- Understands user intent
-- Selects appropriate tools (Pandas/RAG)
-- Synthesizes comprehensive responses
-
-## 📊 Sample Output
-
-```
-Query: "Who are the top 3 riskiest users and why?"
-
-Response:
-Based on the analysis, here are the top 3 highest-risk users:
-
-1. **User U025** (Finance) - Risk Score: 15.67
-   - Clicked 4 phishing emails with average response time of 21 seconds
-   - Extremely vulnerable to urgency-based templates
-   - Shows impulsive clicking behavior without verification
-   - Recommendation: Immediate one-on-one security training
-
-2. **User U011** (Finance) - Risk Score: 12.34
-   - Clicked 3 phishing emails, average response 25 seconds
-   - Particularly susceptible to financial/banking themes
-   - Needs training on email verification techniques
-
-3. **User U007** (Finance) - Risk Score: 11.89
-   - Clicked 3 phishing emails, fastest response at 15 seconds
-   - High vulnerability to time-pressure tactics
-   - Recommend implementing email verification checklist
-
-Pattern: All top-risk users are from Finance department, suggesting 
-department-wide security awareness training is critical. Focus training 
-on recognizing urgency tactics and proper email verification procedures.
-```
-
-## 🎯 Use Cases
-
-1. **Post-Campaign Analysis**: Understand campaign results
-2. **Security Training**: Identify who needs training
-3. **Template Testing**: Evaluate template effectiveness
-4. **Risk Assessment**: Prioritize security interventions
-5. **Trend Analysis**: Track improvement over time
-6. **Executive Reporting**: Generate insights for leadership
-
-## 🌐 API Integration
-
-The system can be extended with a REST API:
-
-```python
-from fastapi import FastAPI
-app = FastAPI()
-
-@app.post("/query")
-async def query(question: str):
-    response = chatbot.query(question)
-    return {"response": response}
-```
-
-## 📈 Roadmap
-
-- [ ] Multi-campaign comparison
-- [ ] Temporal trend analysis
-- [ ] Interactive visualizations
-- [ ] PDF report generation
-- [ ] Scheduled analysis reports
-- [ ] Integration with security platforms
-- [ ] Real-time campaign monitoring
-- [ ] Machine learning predictions
+Contributions welcome! Areas for improvement:
+- Enhanced NLP query understanding
+- Additional data export formats
+- Frontend UI examples
+- Performance optimizations
+- Multi-language support
 
 ---
 
-**Built with ❤️ for cybersecurity teams**
+## 📞 Support
 
-*Making phishing analysis intelligent, accessible, and actionable.*
+- **Documentation**: Check `/docs` endpoint for API reference
+- **Deployment Guide**: See [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md)
+- **Issues**: Check application logs first
+- **Questions**: Review this README and troubleshooting sections
+
+---
+
+## 🎉 Acknowledgments
+
+Built with:
+- [FastAPI](https://fastapi.tiangolo.com/) - Modern Python API framework
+- [Groq](https://groq.com/) - Lightning-fast LLM inference
+- [Qdrant](https://qdrant.tech/) - High-performance vector database
+- [Sentence-Transformers](https://www.sbert.net/) - State-of-the-art embeddings
+- [Render](https://render.com/) - Simple cloud deployment
+
+---
+
+**🚀 Ready to deploy?** Check out [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md) for the complete cloud deployment guide!
+
+**💬 Questions?** The API documentation at `/docs` has interactive examples for all endpoints.
