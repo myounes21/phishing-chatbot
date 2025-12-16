@@ -20,21 +20,21 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application files
 COPY *.py .
 COPY config.yaml .
+# Ensure we have the sample data available
+COPY sample_phishing_data.csv .
 
 # Create necessary directories
 RUN mkdir -p data/raw data/processed data/insights logs
 
-# Expose Streamlit port
-EXPOSE 8501
+# Expose API port
+EXPOSE 8000
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
-ENV STREAMLIT_SERVER_PORT=8501
-ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
 
-# Health check
+# Health check for API
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8501/_stcore/health || exit 1
+    CMD curl -f http://localhost:8000/health || exit 1
 
-# Default command
-CMD ["streamlit", "run", "chatbot_app.py", "--server.address=0.0.0.0"]
+# Default command to run the API
+CMD ["uvicorn", "api_backend:app", "--host", "0.0.0.0", "--port", "8000"]

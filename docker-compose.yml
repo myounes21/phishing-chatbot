@@ -21,14 +21,14 @@ services:
       timeout: 10s
       retries: 3
 
-  # Phishing Chatbot Application
-  chatbot:
+  # Phishing Agent API
+  api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: phishing_chatbot
+    container_name: phishing_api
     ports:
-      - "8501:8501"  # Streamlit
+      - "8000:8000"  # FastAPI
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
@@ -36,12 +36,12 @@ services:
       - GROQ_API_KEY=${GROQ_API_KEY}
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
+      - PHISHING_DATA_PATH=sample_phishing_data.csv
     depends_on:
       - qdrant
     networks:
       - phishing_network
     restart: unless-stopped
-    command: streamlit run chatbot_app.py --server.address=0.0.0.0
 
 volumes:
   qdrant_storage:
