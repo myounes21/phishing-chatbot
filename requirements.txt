@@ -12,7 +12,7 @@ numpy
 # Web Framework
 fastapi
 uvicorn
-streamlit
+python-multipart
 
 # Utilities
 python-dotenv
