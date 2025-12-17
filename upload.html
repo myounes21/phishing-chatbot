@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Data - Phishing Campaign Analyzer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 25px;
+            background: #f9f9f9;
+            border-radius: 12px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input[type="text"],
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input[type="text"]:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .form-group input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            background: #f0f0ff;
+            cursor: pointer;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: scale(1.02);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .config {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #ffc107;
+        }
+
+        .config label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #856404;
+        }
+
+        .config input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #28a745;
+            color: #155724;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #dc3545;
+            color: #721c24;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+            font-size: 14px;
+        }
+
+        .info strong {
+            color: #667eea;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📤 Upload Data</h1>
+            <p>Phishing Campaign Analyzer</p>
+        </div>
+
+        <div class="content">
+            <div class="config">
+                <label>API Endpoint:</label>
+                <input type="text" id="apiUrl" value="http://localhost:8000" placeholder="https://your-app.onrender.com">
+            </div>
+
+            <!-- Upload Phishing Campaign CSV -->
+            <div class="section">
+                <h2>📊 Upload Phishing Campaign CSV</h2>
+                <div class="info">
+                    <strong>CSV Format Required:</strong><br>
+                    Columns: User_ID, Department, Template, Action, Response_Time_Sec<br>
+                    Actions: Clicked, Ignored, or Reported
+                </div>
+                <form id="campaignForm">
+                    <div class="form-group">
+                        <label>Campaign Name *</label>
+                        <input type="text" name="campaign_name" required placeholder="Q4 2024 Security Simulation">
+                    </div>
+                    <div class="form-group">
+                        <label>Description (optional)</label>
+                        <input type="text" name="campaign_description" placeholder="Quarterly awareness training test">
+                    </div>
+                    <div class="form-group">
+                        <label>CSV File *</label>
+                        <input type="file" name="file" accept=".csv" required>
+                    </div>
+                    <button type="submit" class="btn">Upload Campaign</button>
+                </form>
+                <div id="campaignResult" class="result"></div>
+            </div>
+
+            <!-- Upload Company Knowledge -->
+            <div class="section">
+                <h2>🏢 Upload Company Knowledge</h2>
+                <div class="info">
+                    <strong>Add information about your organization:</strong> mission, values, services, team, etc.
+                </div>
+                <form id="companyForm">
+                    <div class="form-group">
+                        <label>Title *</label>
+                        <input type="text" name="title" required placeholder="About Our Company">
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <input type="text" name="category" value="general" placeholder="about, mission, services, etc.">
+                    </div>
+                    <div class="form-group">
+                        <label>Content *</label>
+                        <textarea name="content" required placeholder="We are a cybersecurity company..."></textarea>
+                    </div>
+                    <button type="submit" class="btn">Upload Company Knowledge</button>
+                </form>
+                <div id="companyResult" class="result"></div>
+            </div>
+
+            <!-- Upload PDF Document -->
+            <div class="section">
+                <h2>📄 Upload PDF Document</h2>
+                <div class="info">
+                    <strong>Upload PDF files:</strong> policies, reports, manuals, guides, etc.<br>
+                    Text will be extracted and made searchable for answering questions.
+                </div>
+                <form id="pdfForm">
+                    <div class="form-group">
+                        <label>Document Title *</label>
+                        <input type="text" name="title" required placeholder="Security Policy 2024">
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <input type="text" name="category" value="general" placeholder="policy, report, manual, etc.">
+                    </div>
+                    <div class="form-group">
+                        <label>Description (optional)</label>
+                        <input type="text" name="description" placeholder="Brief description of the document">
+                    </div>
+                    <div class="form-group">
+                        <label>PDF File *</label>
+                        <input type="file" name="file" accept=".pdf" required>
+                    </div>
+                    <button type="submit" class="btn">Upload PDF Document</button>
+                </form>
+                <div id="pdfResult" class="result"></div>
+            </div>
+
+            <!-- Upload Phishing Knowledge -->
+            <div class="section">
+                <h2>🎓 Upload Phishing Knowledge</h2>
+                <div class="info">
+                    <strong>Add educational content:</strong> tactics, defenses, best practices, etc.
+                </div>
+                <form id="phishingForm">
+                    <div class="form-group">
+                        <label>Title *</label>
+                        <input type="text" name="title" required placeholder="Common Phishing Tactics">
+                    </div>
+                    <div class="form-group">
+                        <label>Topic</label>
+                        <input type="text" name="topic" value="general" placeholder="tactics, defense, education, etc.">
+                    </div>
+                    <div class="form-group">
+                        <label>Content *</label>
+                        <textarea name="content" required placeholder="Phishing attacks commonly exploit..."></textarea>
+                    </div>
+                    <button type="submit" class="btn">Upload Phishing Knowledge</button>
+                </form>
+                <div id="phishingResult" class="result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const apiUrl = document.getElementById('apiUrl').value;
+
+        // Update API URL when changed
+        document.getElementById('apiUrl').addEventListener('change', (e) => {
+            window.currentApiUrl = e.target.value;
+        });
+        window.currentApiUrl = apiUrl;
+
+        function showResult(elementId, message, isSuccess) {
+            const resultDiv = document.getElementById(elementId);
+            resultDiv.className = `result ${isSuccess ? 'success' : 'error'} show`;
+            resultDiv.textContent = message;
+            
+            // Scroll to result
+            resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // Handle Campaign Upload
+        document.getElementById('campaignForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const resultDiv = document.getElementById('campaignResult');
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span> Uploading...';
+            resultDiv.className = 'result';
+
+            const formData = new FormData(form);
+            const apiUrl = window.currentApiUrl;
+
+            try {
+                const response = await fetch(`${apiUrl}/upload/phishing_campaign`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('campaignResult', 
+                        `✅ Success! ${data.chunks_added} insights added. Campaign ID: ${data.campaign_id}`, 
+                        true);
+                    form.reset();
+                } else {
+                    showResult('campaignResult', `❌ Error: ${data.detail || 'Upload failed'}`, false);
+                }
+            } catch (error) {
+                showResult('campaignResult', `❌ Error: ${error.message}`, false);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Upload Campaign';
+            }
+        });
+
+        // Handle Company Knowledge Upload
+        document.getElementById('companyForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span> Uploading...';
+
+            const formData = new FormData(form);
+            const apiUrl = window.currentApiUrl;
+
+            try {
+                const response = await fetch(`${apiUrl}/upload/company_knowledge`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('companyResult', 
+                        `✅ Success! ${data.chunks_added} chunks added to company knowledge.`, 
+                        true);
+                    form.reset();
+                } else {
+                    showResult('companyResult', `❌ Error: ${data.detail || 'Upload failed'}`, false);
+                }
+            } catch (error) {
+                showResult('companyResult', `❌ Error: ${error.message}`, false);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Upload Company Knowledge';
+            }
+        });
+
+        // Handle PDF Upload
+        document.getElementById('pdfForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span> Uploading...';
+
+            const formData = new FormData(form);
+            const apiUrl = window.currentApiUrl;
+
+            try {
+                const response = await fetch(`${apiUrl}/upload/pdf_document`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('pdfResult', 
+                        `✅ Success! ${data.chunks_added} chunks added. PDF is now searchable.`, 
+                        true);
+                    form.reset();
+                } else {
+                    showResult('pdfResult', `❌ Error: ${data.detail || 'Upload failed'}`, false);
+                }
+            } catch (error) {
+                showResult('pdfResult', `❌ Error: ${error.message}`, false);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Upload PDF Document';
+            }
+        });
+
+        // Handle Phishing Knowledge Upload
+        document.getElementById('phishingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span> Uploading...';
+
+            const formData = new FormData(form);
+            const apiUrl = window.currentApiUrl;
+
+            try {
+                const response = await fetch(`${apiUrl}/upload/phishing_general`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult('phishingResult', 
+                        `✅ Success! ${data.chunks_added} chunks added to phishing knowledge.`, 
+                        true);
+                    form.reset();
+                } else {
+                    showResult('phishingResult', `❌ Error: ${data.detail || 'Upload failed'}`, false);
+                }
+            } catch (error) {
+                showResult('phishingResult', `❌ Error: ${error.message}`, false);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Upload Phishing Knowledge';
+            }
+        });
+    </script>
+</body>
+</html>
+

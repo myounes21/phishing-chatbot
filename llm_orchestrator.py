@@ -114,17 +114,21 @@ class LLMOrchestrator:
                            'values', 'services', 'about us', 'team']
         general_keywords = ['what is phishing', 'how to', 'defense', 'tactics', 'prevent',
                            'protect', 'awareness', 'training', 'best practices']
+        pdf_keywords = ['document', 'pdf', 'file', 'report', 'policy', 'procedure', 
+                       'manual', 'guide', 'specification', 'contract']
         
         # Count keyword matches
         phishing_score = sum(1 for kw in phishing_keywords if kw in query_lower)
         company_score = sum(1 for kw in company_keywords if kw in query_lower)
         general_score = sum(1 for kw in general_keywords if kw in query_lower)
+        pdf_score = sum(1 for kw in pdf_keywords if kw in query_lower)
         
         # Determine primary type
         scores = {
             'phishing_insights': phishing_score,
             'company_knowledge': company_score,
-            'phishing_general': general_score
+            'phishing_general': general_score,
+            'pdf_documents': pdf_score
         }
         
         primary_type = max(scores, key=scores.get)

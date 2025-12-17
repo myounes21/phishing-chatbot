@@ -381,7 +381,7 @@ class RAGRetriever:
             return results
         
         # Auto-detect: Search across all collections
-        collections = ["phishing_insights", "company_knowledge", "phishing_general"]
+        collections = ["phishing_insights", "company_knowledge", "phishing_general", "pdf_documents"]
         all_results = self.vector_store.search_multi_collection(
             query_vector=query_embedding.tolist(),
             collections=collections,

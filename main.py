@@ -20,6 +20,7 @@ from insight_generator import InsightGenerator
 from embeddings import EmbeddingGenerator
 from vector_store import VectorStore, RAGRetriever
 from llm_orchestrator import LLMOrchestrator
+from pdf_processor import PDFProcessor
 
 # Setup logging
 logging.basicConfig(
@@ -98,6 +99,11 @@ async def lifespan(app: FastAPI):
         app_state.embedding_generator.load_model()
         logger.info("✅ Embedding generator ready")
         
+        # Initialize PDF Processor
+        logger.info("📄 Initializing PDF processor...")
+        app_state.pdf_processor = PDFProcessor(chunk_size=500, chunk_overlap=50)
+        logger.info("✅ PDF processor ready")
+        
         # Initialize Vector Store (Qdrant Cloud)
         logger.info("🗄️ Connecting to Qdrant Cloud...")
         app_state.vector_store = VectorStore(
@@ -110,7 +116,8 @@ async def lifespan(app: FastAPI):
         collections = [
             "phishing_insights",      # Campaign analytics
             "company_knowledge",      # Organization info
-            "phishing_general"        # General phishing knowledge
+            "phishing_general",       # General phishing knowledge
+            "pdf_documents"          # PDF documents
         ]
         
         for collection in collections:
@@ -433,6 +440,80 @@ async def upload_phishing_general(
             chunks_added=len(documents)
         )
         
+    except Exception as e:
+        logger.error(f"❌ Upload error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/upload/pdf_document", response_model=UploadResponse, tags=["Upload"])
+async def upload_pdf_document(
+    file: UploadFile = File(...),
+    title: str = Form(...),
+    category: str = Form("general"),
+    description: Optional[str] = Form(None)
+):
+    """
+    Upload a PDF document
+    Extracts text, chunks it, and stores in vector database for querying
+    """
+    if not app_state.initialized:
+        raise HTTPException(status_code=503, detail="System not initialized")
+    
+    if not file.filename.endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+    
+    try:
+        logger.info(f"📤 Uploading PDF document: {title}")
+        
+        # Read PDF content
+        pdf_bytes = await file.read()
+        
+        if len(pdf_bytes) == 0:
+            raise HTTPException(status_code=400, detail="PDF file is empty")
+        
+        # Process PDF: extract text and chunk it
+        metadata = {
+            'filename': file.filename,
+            'file_size': len(pdf_bytes)
+        }
+        if description:
+            metadata['description'] = description
+        
+        chunks = app_state.pdf_processor.process_pdf(
+            pdf_bytes=pdf_bytes,
+            title=title,
+            category=category,
+            metadata=metadata
+        )
+        
+        if not chunks:
+            raise HTTPException(status_code=400, detail="No text could be extracted from PDF")
+        
+        # Create embeddings for chunks
+        texts = [chunk['text'] for chunk in chunks]
+        embeddings = app_state.embedding_generator.encode_text(texts)
+        
+        # Add embeddings to chunks
+        for chunk, emb in zip(chunks, embeddings):
+            chunk['embedding'] = emb.tolist()
+        
+        # Store in Qdrant Cloud (pdf_documents collection)
+        app_state.vector_store.add_documents(
+            documents=chunks,
+            collection_name="pdf_documents"
+        )
+        
+        logger.info(f"✅ PDF document uploaded: {len(chunks)} chunks added")
+        
+        return UploadResponse(
+            status="success",
+            message=f"PDF document '{title}' processed successfully",
+            collection="pdf_documents",
+            chunks_added=len(chunks)
+        )
+        
+    except ValueError as e:
+        logger.error(f"❌ PDF processing error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"❌ Upload error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
