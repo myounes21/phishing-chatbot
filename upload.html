@@ -206,7 +206,7 @@
         <div class="content">
             <div class="config">
                 <label>API Endpoint:</label>
-                <input type="text" id="apiUrl" value="http://localhost:8000" placeholder="https://your-app.onrender.com">
+                <input type="text" id="apiUrl" value="https://phishing-chatbot-production.up.railway.app" placeholder="https://your-app.railway.app">
             </div>
 
             <!-- Upload Phishing Campaign CSV -->
@@ -344,7 +344,7 @@
             resultDiv.className = 'result';
 
             const formData = new FormData(form);
-            const apiUrl = window.currentApiUrl;
+            const apiUrl = ensureProtocol(window.currentApiUrl);
 
             try {
                 const response = await fetch(`${apiUrl}/upload/phishing_campaign`, {
@@ -352,7 +352,12 @@
                     body: formData
                 });
 
-                const data = await response.json();
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = { detail: `HTTP ${response.status}: ${response.statusText}` };
+                }
 
                 if (response.ok) {
                     showResult('campaignResult', 
@@ -360,10 +365,15 @@
                         true);
                     form.reset();
                 } else {
-                    showResult('campaignResult', `❌ Error: ${data.detail || 'Upload failed'}`, false);
+                    const errorMsg = data.detail || data.message || `HTTP ${response.status}: ${response.statusText}`;
+                    showResult('campaignResult', `❌ Error: ${errorMsg}`, false);
                 }
             } catch (error) {
-                showResult('campaignResult', `❌ Error: ${error.message}`, false);
+                let errorMsg = error.message;
+                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    errorMsg = 'Cannot connect to server. Please check:\n- API URL is correct\n- Server is running\n- CORS is enabled';
+                }
+                showResult('campaignResult', `❌ Error: ${errorMsg}`, false);
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Upload Campaign';
@@ -380,7 +390,7 @@
             submitBtn.innerHTML = '<span class="loading"></span> Uploading...';
 
             const formData = new FormData(form);
-            const apiUrl = window.currentApiUrl;
+            const apiUrl = ensureProtocol(window.currentApiUrl);
 
             try {
                 const response = await fetch(`${apiUrl}/upload/company_knowledge`, {
@@ -388,7 +398,12 @@
                     body: formData
                 });
 
-                const data = await response.json();
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = { detail: `HTTP ${response.status}: ${response.statusText}` };
+                }
 
                 if (response.ok) {
                     showResult('companyResult', 
@@ -396,10 +411,15 @@
                         true);
                     form.reset();
                 } else {
-                    showResult('companyResult', `❌ Error: ${data.detail || 'Upload failed'}`, false);
+                    const errorMsg = data.detail || data.message || `HTTP ${response.status}: ${response.statusText}`;
+                    showResult('companyResult', `❌ Error: ${errorMsg}`, false);
                 }
             } catch (error) {
-                showResult('companyResult', `❌ Error: ${error.message}`, false);
+                let errorMsg = error.message;
+                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    errorMsg = 'Cannot connect to server. Please check the API URL.';
+                }
+                showResult('companyResult', `❌ Error: ${errorMsg}`, false);
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Upload Company Knowledge';
@@ -416,7 +436,7 @@
             submitBtn.innerHTML = '<span class="loading"></span> Uploading...';
 
             const formData = new FormData(form);
-            const apiUrl = window.currentApiUrl;
+            const apiUrl = ensureProtocol(window.currentApiUrl);
 
             try {
                 const response = await fetch(`${apiUrl}/upload/pdf_document`, {
@@ -424,7 +444,12 @@
                     body: formData
                 });
 
-                const data = await response.json();
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = { detail: `HTTP ${response.status}: ${response.statusText}` };
+                }
 
                 if (response.ok) {
                     showResult('pdfResult', 
@@ -432,10 +457,15 @@
                         true);
                     form.reset();
                 } else {
-                    showResult('pdfResult', `❌ Error: ${data.detail || 'Upload failed'}`, false);
+                    const errorMsg = data.detail || data.message || `HTTP ${response.status}: ${response.statusText}`;
+                    showResult('pdfResult', `❌ Error: ${errorMsg}`, false);
                 }
             } catch (error) {
-                showResult('pdfResult', `❌ Error: ${error.message}`, false);
+                let errorMsg = error.message;
+                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    errorMsg = 'Cannot connect to server. Please check the API URL.';
+                }
+                showResult('pdfResult', `❌ Error: ${errorMsg}`, false);
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Upload PDF Document';
@@ -452,7 +482,7 @@
             submitBtn.innerHTML = '<span class="loading"></span> Uploading...';
 
             const formData = new FormData(form);
-            const apiUrl = window.currentApiUrl;
+            const apiUrl = ensureProtocol(window.currentApiUrl);
 
             try {
                 const response = await fetch(`${apiUrl}/upload/phishing_general`, {
@@ -460,7 +490,12 @@
                     body: formData
                 });
 
-                const data = await response.json();
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = { detail: `HTTP ${response.status}: ${response.statusText}` };
+                }
 
                 if (response.ok) {
                     showResult('phishingResult', 
@@ -468,10 +503,15 @@
                         true);
                     form.reset();
                 } else {
-                    showResult('phishingResult', `❌ Error: ${data.detail || 'Upload failed'}`, false);
+                    const errorMsg = data.detail || data.message || `HTTP ${response.status}: ${response.statusText}`;
+                    showResult('phishingResult', `❌ Error: ${errorMsg}`, false);
                 }
             } catch (error) {
-                showResult('phishingResult', `❌ Error: ${error.message}`, false);
+                let errorMsg = error.message;
+                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    errorMsg = 'Cannot connect to server. Please check the API URL.';
+                }
+                showResult('phishingResult', `❌ Error: ${errorMsg}`, false);
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Upload Phishing Knowledge';

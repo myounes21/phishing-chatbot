@@ -371,7 +371,7 @@
             <input 
                 type="text" 
                 id="apiUrl" 
-                value="http://localhost:8000" 
+                value="https://phishing-chatbot-production.up.railway.app" 
                 placeholder="https://your-app.railway.app"
             >
         </div>
@@ -414,15 +414,28 @@
         let currentMessageId = null;
         let apiUrl = document.getElementById('apiUrl').value;
 
+        // Helper function to ensure URL has protocol
+        function ensureProtocol(url) {
+            if (!url) return '';
+            url = url.trim();
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                return 'https://' + url;
+            }
+            return url;
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
+            // Ensure initial URL has protocol
+            apiUrl = ensureProtocol(apiUrl);
+            document.getElementById('apiUrl').value = apiUrl;
             loadQuickActions();
             document.getElementById('queryInput').focus();
         });
 
         // Update API URL
         document.getElementById('apiUrl').addEventListener('input', (e) => {
-            apiUrl = e.target.value;
+            apiUrl = ensureProtocol(e.target.value);
         });
 
         // Load quick action buttons
@@ -555,7 +568,8 @@
         // Submit feedback
         async function submitFeedback(messageId, rating, btn) {
             try {
-                const response = await fetch(`${apiUrl}/feedback`, {
+                const url = ensureProtocol(apiUrl);
+                const response = await fetch(`${url}/feedback`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -584,11 +598,15 @@
             const query = input.value.trim();
             if (!query) return;
 
-            const currentApiUrl = document.getElementById('apiUrl').value.trim();
+            let currentApiUrl = document.getElementById('apiUrl').value.trim();
             if (!currentApiUrl) {
                 addMessage('❌ Please enter an API URL', false);
                 return;
             }
+
+            // Ensure URL has protocol
+            currentApiUrl = ensureProtocol(currentApiUrl);
+            apiUrl = currentApiUrl; // Update global apiUrl
 
             // Add user message
             addMessage(query, true);
@@ -740,7 +758,8 @@
         async function clearChat() {
             if (sessionId) {
                 try {
-                    await fetch(`${apiUrl}/session/${sessionId}`, { method: 'DELETE' });
+                    const url = ensureProtocol(apiUrl);
+                    await fetch(`${url}/session/${sessionId}`, { method: 'DELETE' });
                 } catch (e) {
                     console.log('Could not clear server session');
                 }
