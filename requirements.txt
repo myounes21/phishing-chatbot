@@ -2,7 +2,7 @@
 # Core AI/ML Dependencies
 # ==========================================
 groq>=0.4.0
-sentence-transformers>=2.2.0
+mixedbread-ai>=2.2.6
 torch>=2.0.0
 
 # ==========================================
