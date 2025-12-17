@@ -71,6 +71,35 @@
             font-weight: 600;
         }
 
+        /* Quick Actions */
+        .quick-actions {
+            padding: 10px 15px;
+            background: #f9f9f9;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .quick-action-btn {
+            padding: 8px 14px;
+            background: white;
+            border: 1px solid #667eea;
+            color: #667eea;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .quick-action-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
         .chat-container {
             flex: 1;
             overflow-y: auto;
@@ -140,9 +169,112 @@
             color: #667eea;
         }
 
+        /* Typing Indicator */
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 15px 20px;
+        }
+
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .typing-text {
+            font-size: 13px;
+            color: #888;
+            margin-left: 8px;
+        }
+
+        /* Feedback Buttons */
+        .feedback-container {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+
+        .feedback-btn {
+            padding: 5px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .feedback-btn:hover {
+            border-color: #667eea;
+        }
+
+        .feedback-btn.selected-up {
+            background: #e8f5e9;
+            border-color: #4caf50;
+            color: #4caf50;
+        }
+
+        .feedback-btn.selected-down {
+            background: #ffebee;
+            border-color: #f44336;
+            color: #f44336;
+        }
+
+        /* Suggested Questions */
+        .suggested-questions {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #eee;
+        }
+
+        .suggested-questions-title {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+
+        .suggested-question-btn {
+            display: block;
+            width: 100%;
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            background: #f5f5f5;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #667eea;
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .suggested-question-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
         .sources {
             margin-top: 15px;
-            padding-top: 15px;
+            padding-top: 15px;  
             border-top: 1px solid #e0e0e0;
             font-size: 12px;
             color: #666;
@@ -203,48 +335,18 @@
             cursor: not-allowed;
         }
 
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .examples {
-            padding: 10px 20px;
-            background: #f9f9f9;
-            border-bottom: 1px solid #e0e0e0;
-            font-size: 12px;
-        }
-
-        .examples strong {
-            color: #667eea;
-        }
-
-        .example-btn {
-            display: inline-block;
-            margin: 5px 5px 5px 0;
-            padding: 5px 10px;
-            background: white;
-            border: 1px solid #667eea;
-            color: #667eea;
-            border-radius: 15px;
+        .clear-btn {
+            padding: 15px;
+            background: #f5f5f5;
+            color: #666;
+            border: none;
+            border-radius: 25px;
             cursor: pointer;
-            font-size: 11px;
-            transition: all 0.2s;
+            font-size: 14px;
         }
 
-        .example-btn:hover {
-            background: #667eea;
-            color: white;
+        .clear-btn:hover {
+            background: #e0e0e0;
         }
 
         .error {
@@ -270,16 +372,12 @@
                 type="text" 
                 id="apiUrl" 
                 value="http://localhost:8000" 
-                placeholder="https://your-app.onrender.com"
+                placeholder="https://your-app.railway.app"
             >
         </div>
 
-        <div class="examples">
-            <strong>Try asking:</strong>
-            <span class="example-btn" onclick="askExample('What is the click rate for Finance department?')">📊 Finance Click Rate</span>
-            <span class="example-btn" onclick="askExample('Who are the top 5 riskiest users?')">⚠️ Risky Users</span>
-            <span class="example-btn" onclick="askExample('What psychological tactics do phishing emails use?')">🧠 Phishing Tactics</span>
-            <span class="example-btn" onclick="askExample('Who are we as a company?')">🏢 About Us</span>
+        <div class="quick-actions" id="quickActions">
+            <!-- Quick actions will be loaded dynamically -->
         </div>
 
         <div class="chat-container" id="chatContainer">
@@ -304,30 +402,63 @@
                 placeholder="Ask me anything about phishing security..." 
                 onkeypress="if(event.key==='Enter') sendQuery()"
             >
+            <button class="clear-btn" onclick="clearChat()" title="Clear chat">🗑️</button>
             <button id="sendBtn" onclick="sendQuery()">Send</button>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <script>
-        // Configuration
+        // State
+        let sessionId = localStorage.getItem('chatSessionId') || null;
+        let currentMessageId = null;
         let apiUrl = document.getElementById('apiUrl').value;
 
-        // Update API URL when changed
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadQuickActions();
+            document.getElementById('queryInput').focus();
+        });
+
+        // Update API URL
         document.getElementById('apiUrl').addEventListener('input', (e) => {
             apiUrl = e.target.value;
         });
-        
-        // Also update on blur (when user leaves the field)
-        document.getElementById('apiUrl').addEventListener('blur', (e) => {
-            apiUrl = e.target.value;
-        });
+
+        // Load quick action buttons
+        async function loadQuickActions() {
+            try {
+                const response = await fetch(`${apiUrl}/quick_actions`);
+                if (response.ok) {
+                    const data = await response.json();
+                    renderQuickActions(data.quick_actions);
+                }
+            } catch (e) {
+                console.log('Could not load quick actions');
+            }
+        }
+
+        function renderQuickActions(actions) {
+            const container = document.getElementById('quickActions');
+            container.innerHTML = actions.map(action => `
+                <button class="quick-action-btn" onclick="askQuestion('${action.query.replace(/'/g, "\\'")}')">
+                    ${action.icon} ${action.label.replace(action.icon, '').trim()}
+                </button>
+            `).join('');
+        }
+
+        // Ask a predefined question
+        function askQuestion(query) {
+            document.getElementById('queryInput').value = query;
+            sendQuery();
+        }
 
         // Add message to chat
-        function addMessage(content, isUser = false, sources = null) {
+        function addMessage(content, isUser = false, messageId = null, sources = null, suggestedQuestions = null) {
             const chatContainer = document.getElementById('chatContainer');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+            if (messageId) messageDiv.dataset.messageId = messageId;
 
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
@@ -336,70 +467,123 @@
                 contentDiv.textContent = content;
             } else {
                 // Parse markdown for bot messages
-                // Support both old and new marked API
                 try {
-                    if (typeof marked.parse === 'function') {
-                        contentDiv.innerHTML = marked.parse(content);
-                    } else if (typeof marked === 'function') {
-                        contentDiv.innerHTML = marked(content);
-                    } else {
-                        contentDiv.textContent = content;
-                    }
+                    contentDiv.innerHTML = typeof marked.parse === 'function' 
+                        ? marked.parse(content) 
+                        : marked(content);
                 } catch (e) {
-                    console.error('Markdown parsing error:', e);
                     contentDiv.textContent = content;
                 }
 
-                // Add sources if available
+                // Add sources
                 if (sources && sources.length > 0) {
                     const sourcesDiv = document.createElement('div');
                     sourcesDiv.className = 'sources';
                     sourcesDiv.innerHTML = '<h4>📚 Sources:</h4>';
-                    
                     sources.forEach(source => {
                         const sourceItem = document.createElement('div');
                         sourceItem.className = 'source-item';
                         sourceItem.innerHTML = `
                             <strong>${source.title}</strong> 
-                            <span style="color: #999;">(${source.collection}, relevance: ${(source.relevance * 100).toFixed(0)}%)</span>
+                            <span style="color: #999;">(${source.collection}, ${(source.relevance * 100).toFixed(0)}%)</span>
                         `;
                         sourcesDiv.appendChild(sourceItem);
                     });
-                    
                     contentDiv.appendChild(sourcesDiv);
+                }
+
+                // Add feedback buttons
+                if (messageId) {
+                    const feedbackDiv = document.createElement('div');
+                    feedbackDiv.className = 'feedback-container';
+                    feedbackDiv.innerHTML = `
+                        <button class="feedback-btn" onclick="submitFeedback('${messageId}', 'up', this)">
+                            👍 Helpful
+                        </button>
+                        <button class="feedback-btn" onclick="submitFeedback('${messageId}', 'down', this)">
+                            👎 Not helpful
+                        </button>
+                    `;
+                    contentDiv.appendChild(feedbackDiv);
+                }
+
+                // Add suggested questions
+                if (suggestedQuestions && suggestedQuestions.length > 0) {
+                    const suggestDiv = document.createElement('div');
+                    suggestDiv.className = 'suggested-questions';
+                    suggestDiv.innerHTML = '<div class="suggested-questions-title">💡 You might also want to ask:</div>';
+                    suggestedQuestions.forEach(q => {
+                        const btn = document.createElement('button');
+                        btn.className = 'suggested-question-btn';
+                        btn.textContent = q;
+                        btn.onclick = () => askQuestion(q);
+                        suggestDiv.appendChild(btn);
+                    });
+                    contentDiv.appendChild(suggestDiv);
                 }
             }
 
             messageDiv.appendChild(contentDiv);
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+            return contentDiv;
         }
 
-        // Add loading indicator
-        function addLoading() {
+        // Add typing indicator
+        function addTypingIndicator() {
             const chatContainer = document.getElementById('chatContainer');
-            const loadingDiv = document.createElement('div');
-            loadingDiv.className = 'message bot';
-            loadingDiv.id = 'loading-message';
-            loadingDiv.innerHTML = '<div class="message-content"><div class="loading"></div> Thinking...</div>';
-            chatContainer.appendChild(loadingDiv);
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message bot';
+            typingDiv.id = 'typing-indicator';
+            typingDiv.innerHTML = `
+                <div class="message-content">
+                    <div class="typing-indicator">
+                        <span></span><span></span><span></span>
+                        <span class="typing-text">Thinking...</span>
+                    </div>
+                </div>
+            `;
+            chatContainer.appendChild(typingDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        // Remove loading indicator
-        function removeLoading() {
-            const loading = document.getElementById('loading-message');
-            if (loading) loading.remove();
+        function removeTypingIndicator() {
+            const typing = document.getElementById('typing-indicator');
+            if (typing) typing.remove();
         }
 
-        // Send query to API
+        // Submit feedback
+        async function submitFeedback(messageId, rating, btn) {
+            try {
+                const response = await fetch(`${apiUrl}/feedback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message_id: messageId,
+                        session_id: sessionId || 'anonymous',
+                        rating: rating
+                    })
+                });
+
+                if (response.ok) {
+                    // Update button styles
+                    const container = btn.parentElement;
+                    container.querySelectorAll('.feedback-btn').forEach(b => {
+                        b.classList.remove('selected-up', 'selected-down');
+                    });
+                    btn.classList.add(rating === 'up' ? 'selected-up' : 'selected-down');
+                }
+            } catch (e) {
+                console.error('Feedback error:', e);
+            }
+        }
+
+        // Send query with streaming
         async function sendQuery() {
             const input = document.getElementById('queryInput');
             const query = input.value.trim();
-
             if (!query) return;
-            
-            // Get current API URL
+
             const currentApiUrl = document.getElementById('apiUrl').value.trim();
             if (!currentApiUrl) {
                 addMessage('❌ Please enter an API URL', false);
@@ -410,126 +594,167 @@
             addMessage(query, true);
             input.value = '';
 
-            // Disable button and add loading
+            // Disable button
             const sendBtn = document.getElementById('sendBtn');
             sendBtn.disabled = true;
-            addLoading();
+            addTypingIndicator();
 
             try {
-                // Test if API URL is reachable first
-                const healthCheck = await fetch(`${currentApiUrl}/health`, {
-                    method: 'GET',
-                    signal: AbortSignal.timeout(5000) // 5 second timeout
-                });
-                
-                if (!healthCheck.ok) {
-                    throw new Error(`Server returned ${healthCheck.status}. Please check if the server is running.`);
-                }
-
-                const response = await fetch(`${currentApiUrl}/query_agent`, {
+                // Use streaming endpoint
+                const response = await fetch(`${currentApiUrl}/query_stream`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         query: query,
+                        session_id: sessionId,
                         include_sources: true
-                    }),
-                    signal: AbortSignal.timeout(60000) // 60 second timeout for query
+                    })
                 });
 
                 if (!response.ok) {
-                    let errorData = {};
-                    try {
-                        errorData = await response.json();
-                    } catch (e) {
-                        console.error('Failed to parse error response:', e);
-                    }
-                    const errorDetail = errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
-                    console.error('API Error:', {
-                        status: response.status,
-                        statusText: response.statusText,
-                        detail: errorDetail,
-                        fullError: errorData
-                    });
-                    throw new Error(`HTTP ${response.status}: ${errorDetail}`);
+                    throw new Error(`HTTP ${response.status}`);
                 }
 
-                const data = await response.json();
+                removeTypingIndicator();
 
-                // Remove loading and add response
-                removeLoading();
-                
-                if (data.response) {
-                    addMessage(data.response, false, data.sources);
-                } else {
-                    throw new Error('No response received from server');
+                // Create message element for streaming
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message bot';
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+                messageDiv.appendChild(contentDiv);
+                document.getElementById('chatContainer').appendChild(messageDiv);
+
+                // Read the stream
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullContent = '';
+                let messageId = null;
+                let sources = null;
+                let suggestedQuestions = null;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const text = decoder.decode(value);
+                    const lines = text.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                
+                                if (data.type === 'session') {
+                                    sessionId = data.session_id;
+                                    localStorage.setItem('chatSessionId', sessionId);
+                                    messageId = data.message_id;
+                                } else if (data.type === 'content') {
+                                    fullContent += data.content;
+                                    try {
+                                        contentDiv.innerHTML = typeof marked.parse === 'function'
+                                            ? marked.parse(fullContent)
+                                            : marked(fullContent);
+                                    } catch (e) {
+                                        contentDiv.textContent = fullContent;
+                                    }
+                                    document.getElementById('chatContainer').scrollTop = 
+                                        document.getElementById('chatContainer').scrollHeight;
+                                } else if (data.type === 'done') {
+                                    sources = data.sources;
+                                    suggestedQuestions = data.suggested_questions;
+                                    messageId = data.message_id;
+                                } else if (data.type === 'error') {
+                                    fullContent += `\n\n❌ Error: ${data.error}`;
+                                    contentDiv.innerHTML = marked.parse(fullContent);
+                                }
+                            } catch (e) {
+                                // Ignore parse errors
+                            }
+                        }
+                    }
+                }
+
+                // Add sources
+                if (sources && sources.length > 0) {
+                    const sourcesDiv = document.createElement('div');
+                    sourcesDiv.className = 'sources';
+                    sourcesDiv.innerHTML = '<h4>📚 Sources:</h4>';
+                    sources.forEach(source => {
+                        const sourceItem = document.createElement('div');
+                        sourceItem.className = 'source-item';
+                        sourceItem.innerHTML = `
+                            <strong>${source.title}</strong> 
+                            <span style="color: #999;">(${source.collection}, ${(source.relevance * 100).toFixed(0)}%)</span>
+                        `;
+                        sourcesDiv.appendChild(sourceItem);
+                    });
+                    contentDiv.appendChild(sourcesDiv);
+                }
+
+                // Add feedback buttons
+                if (messageId) {
+                    const feedbackDiv = document.createElement('div');
+                    feedbackDiv.className = 'feedback-container';
+                    feedbackDiv.innerHTML = `
+                        <button class="feedback-btn" onclick="submitFeedback('${messageId}', 'up', this)">
+                            👍 Helpful
+                        </button>
+                        <button class="feedback-btn" onclick="submitFeedback('${messageId}', 'down', this)">
+                            👎 Not helpful
+                        </button>
+                    `;
+                    contentDiv.appendChild(feedbackDiv);
+                }
+
+                // Add suggested questions
+                if (suggestedQuestions && suggestedQuestions.length > 0) {
+                    const suggestDiv = document.createElement('div');
+                    suggestDiv.className = 'suggested-questions';
+                    suggestDiv.innerHTML = '<div class="suggested-questions-title">💡 You might also want to ask:</div>';
+                    suggestedQuestions.forEach(q => {
+                        const btn = document.createElement('button');
+                        btn.className = 'suggested-question-btn';
+                        btn.textContent = q;
+                        btn.onclick = () => askQuestion(q);
+                        suggestDiv.appendChild(btn);
+                    });
+                    contentDiv.appendChild(suggestDiv);
                 }
 
             } catch (error) {
-                removeLoading();
-                console.error('Full error object:', error);
-                console.error('Error message:', error.message);
-                console.error('Error stack:', error.stack);
+                removeTypingIndicator();
+                console.error('Query error:', error);
                 
-                let errorMessage = '**Error**: ';
-                
-                if (error.name === 'AbortError') {
-                    errorMessage += 'Request timed out. The server may be slow or unreachable.';
-                } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                    errorMessage += 'Cannot connect to server.\n\nPlease check:\n- API URL is correct\n- Server is running\n- CORS is enabled\n- No firewall blocking the connection';
-                } else if (error.message.includes('503')) {
-                    // Extract the actual error detail from the message
-                    const errorDetail = error.message.replace('HTTP 503: ', '').trim();
-                    errorMessage += `**503 Service Unavailable**\n\n${errorDetail}\n\n`;
-                    
-                    // Add helpful troubleshooting
-                    errorMessage += '**Troubleshooting Steps:**\n\n';
-                    errorMessage += '1. **Check Health Endpoint**\n';
-                    errorMessage += `   Visit: ${currentApiUrl}/health\n`;
-                    errorMessage += '   This shows which components are initialized\n\n';
-                    errorMessage += '2. **Check Server Logs**\n';
-                    errorMessage += '   Look at the terminal where you ran `uvicorn main:app`\n';
-                    errorMessage += '   Look for initialization errors or component failures\n\n';
-                    errorMessage += '3. **Verify API Keys**\n';
-                    errorMessage += '   - Check that GROQ_API_KEY is set and valid\n';
-                    errorMessage += '   - Check that MIXEDBREAD_API_KEY is set and valid\n';
-                    errorMessage += '   - Get Groq API key: https://console.groq.com\n';
-                    errorMessage += '   - Get Mixedbread API key: https://www.mixedbread.ai/\n\n';
-                    errorMessage += '4. **Restart Server**\n';
-                    errorMessage += '   After fixing issues, restart: `uvicorn main:app --reload`';
-                } else {
-                    // Show the actual error message
-                    errorMessage += error.message;
+                let errorMessage = '**Error**: ' + error.message;
+                if (error.message.includes('Failed to fetch')) {
+                    errorMessage = '**Error**: Cannot connect to server. Please check the API URL and ensure the server is running.';
                 }
-                
                 addMessage(errorMessage, false);
             } finally {
                 sendBtn.disabled = false;
             }
         }
 
-        // Ask example question
-        function askExample(question) {
-            const input = document.getElementById('queryInput');
-            input.value = question;
-            input.focus();
-            // Small delay to ensure input is set
-            setTimeout(() => sendQuery(), 100);
-        }
-
-        // Focus on input when page loads
-        window.addEventListener('load', () => {
-            document.getElementById('queryInput').focus();
-        });
-        
-        // Allow Enter key to send
-        document.getElementById('queryInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendQuery();
+        // Clear chat
+        async function clearChat() {
+            if (sessionId) {
+                try {
+                    await fetch(`${apiUrl}/session/${sessionId}`, { method: 'DELETE' });
+                } catch (e) {
+                    console.log('Could not clear server session');
+                }
             }
-        });
+            
+            const chatContainer = document.getElementById('chatContainer');
+            chatContainer.innerHTML = `
+                <div class="message bot">
+                    <div class="message-content">
+                        <p>👋 Chat cleared! How can I help you?</p>
+                    </div>
+                </div>
+            `;
+        }
     </script>
 </body>
 </html>

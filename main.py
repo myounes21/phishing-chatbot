@@ -5,14 +5,19 @@ Cloud-Native FastAPI Backend with Qdrant Cloud Integration
 
 import os
 import logging
+import uuid
+import json
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
 import pandas as pd
 import io
+import asyncio
+from datetime import datetime
 
 # Import core modules
 from data_processor import PhishingDataProcessor
@@ -62,6 +67,23 @@ class HealthResponse(BaseModel):
     message: Optional[str] = Field(None, description="Status message")
     environment: Optional[Dict[str, str]] = Field(None, description="Environment variable status")
 
+class StreamQueryRequest(BaseModel):
+    query: str = Field(..., description="User's natural language question")
+    session_id: Optional[str] = Field(None, description="Session ID for conversation memory")
+    collection: Optional[str] = Field(None, description="Specific collection to query")
+    include_sources: bool = Field(True, description="Include source citations in response")
+
+class FeedbackRequest(BaseModel):
+    message_id: str = Field(..., description="ID of the message being rated")
+    session_id: str = Field(..., description="Session ID")
+    rating: str = Field(..., description="Rating: 'up' or 'down'")
+    query: Optional[str] = Field(None, description="Original query")
+    response: Optional[str] = Field(None, description="Bot response")
+
+class FeedbackResponse(BaseModel):
+    status: str
+    message: str
+
 # ============================================
 # Global State
 # ============================================
@@ -75,8 +97,46 @@ class AppState:
         self.data_processor = None
         self.pdf_processor = None
         self.initialized = False
+        # Session-based conversation memory
+        self.sessions: Dict[str, Dict] = {}
+        # Feedback storage
+        self.feedback: List[Dict] = []
 
 app_state = AppState()
+
+# ============================================
+# Session Management
+# ============================================
+
+def get_or_create_session(session_id: Optional[str] = None) -> str:
+    """Get existing session or create a new one"""
+    if not session_id:
+        session_id = str(uuid.uuid4())
+    
+    if session_id not in app_state.sessions:
+        app_state.sessions[session_id] = {
+            "created_at": datetime.now().isoformat(),
+            "conversation_history": [],
+            "message_count": 0
+        }
+    
+    return session_id
+
+def add_to_session(session_id: str, query: str, response: str, message_id: str):
+    """Add a message exchange to session history"""
+    if session_id in app_state.sessions:
+        app_state.sessions[session_id]["conversation_history"].append({
+            "message_id": message_id,
+            "query": query,
+            "response": response,
+            "timestamp": datetime.now().isoformat()
+        })
+        app_state.sessions[session_id]["message_count"] += 1
+        
+        # Keep only last 20 messages per session
+        if len(app_state.sessions[session_id]["conversation_history"]) > 20:
+            app_state.sessions[session_id]["conversation_history"] = \
+                app_state.sessions[session_id]["conversation_history"][-20:]
 
 # ============================================
 # Startup & Shutdown
@@ -382,6 +442,232 @@ async def query_agent(request: QueryRequest):
     except Exception as e:
         logger.error(f"❌ Query processing error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================
+# Streaming Query Endpoint
+# ============================================
+
+@app.post("/query_stream", tags=["Query"])
+async def query_stream(request: StreamQueryRequest):
+    """
+    Streaming query endpoint - Returns response in real-time chunks via SSE.
+    Much better UX as users see the response being generated.
+    """
+    # Check all required components
+    if not app_state.llm_orchestrator:
+        raise HTTPException(status_code=503, detail="LLM not available")
+    if not app_state.embedding_generator:
+        raise HTTPException(status_code=503, detail="Embedding generator not available")
+    if not app_state.vector_store:
+        raise HTTPException(status_code=503, detail="Vector store not available")
+    if not app_state.rag_retriever:
+        raise HTTPException(status_code=503, detail="RAG retriever not available")
+    
+    # Get or create session
+    session_id = get_or_create_session(request.session_id)
+    message_id = str(uuid.uuid4())
+    
+    async def generate_stream():
+        """Generator for SSE streaming"""
+        full_response = ""
+        sources = None
+        suggested_questions = []
+        
+        try:
+            # Send session info first
+            yield f"data: {json.dumps({'type': 'session', 'session_id': session_id, 'message_id': message_id})}\n\n"
+            
+            # Send typing indicator
+            yield f"data: {json.dumps({'type': 'typing', 'status': 'start'})}\n\n"
+            
+            # Get context
+            rag_top_k = int(os.getenv('RAG_TOP_K', '8'))
+            contexts = await app_state.rag_retriever.retrieve_context(
+                query=request.query,
+                collection=request.collection,
+                top_k=rag_top_k
+            )
+            
+            # Format context
+            formatted_context = app_state.rag_retriever.format_context_for_llm(contexts) if contexts else ""
+            
+            # Prepare sources
+            if request.include_sources and contexts:
+                sources = [
+                    {
+                        'content': ctx['payload'].get('text', '')[:200] + '...',
+                        'relevance': ctx['score'],
+                        'collection': ctx.get('collection', 'unknown'),
+                        'title': ctx['payload'].get('title', ctx['payload'].get('campaign_name', 'Untitled'))
+                    }
+                    for ctx in contexts[:5]
+                ]
+            
+            # Stream the response
+            async for chunk in app_state.llm_orchestrator.stream_response(
+                query=request.query,
+                context=formatted_context,
+                session_id=session_id
+            ):
+                full_response += chunk
+                yield f"data: {json.dumps({'type': 'content', 'content': chunk})}\n\n"
+            
+            # Generate suggested follow-up questions
+            suggested_questions = await app_state.llm_orchestrator.generate_follow_up_questions(
+                query=request.query,
+                response=full_response
+            )
+            
+            # Save to session
+            add_to_session(session_id, request.query, full_response, message_id)
+            
+            # Send completion with sources and suggestions
+            yield f"data: {json.dumps({'type': 'done', 'sources': sources, 'suggested_questions': suggested_questions, 'message_id': message_id})}\n\n"
+            
+        except Exception as e:
+            logger.error(f"❌ Streaming error: {e}")
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+    
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+# ============================================
+# Feedback Endpoint
+# ============================================
+
+@app.post("/feedback", response_model=FeedbackResponse, tags=["Feedback"])
+async def submit_feedback(request: FeedbackRequest):
+    """
+    Submit feedback for a bot response (thumbs up/down).
+    Helps improve response quality over time.
+    """
+    try:
+        feedback_entry = {
+            "id": str(uuid.uuid4()),
+            "message_id": request.message_id,
+            "session_id": request.session_id,
+            "rating": request.rating,
+            "query": request.query,
+            "response": request.response,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        app_state.feedback.append(feedback_entry)
+        
+        # Keep only last 1000 feedback entries in memory
+        if len(app_state.feedback) > 1000:
+            app_state.feedback = app_state.feedback[-1000:]
+        
+        logger.info(f"📝 Feedback received: {request.rating} for message {request.message_id}")
+        
+        return FeedbackResponse(
+            status="success",
+            message=f"Thank you for your feedback!"
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Feedback error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/feedback/stats", tags=["Feedback"])
+async def get_feedback_stats():
+    """Get feedback statistics"""
+    total = len(app_state.feedback)
+    up_votes = sum(1 for f in app_state.feedback if f["rating"] == "up")
+    down_votes = sum(1 for f in app_state.feedback if f["rating"] == "down")
+    
+    return {
+        "total_feedback": total,
+        "up_votes": up_votes,
+        "down_votes": down_votes,
+        "satisfaction_rate": round(up_votes / total * 100, 1) if total > 0 else 0
+    }
+
+# ============================================
+# Quick Actions Endpoint
+# ============================================
+
+@app.get("/quick_actions", tags=["Query"])
+async def get_quick_actions():
+    """
+    Get pre-defined quick action buttons for common queries.
+    These appear in the chat UI for easy access.
+    """
+    return {
+        "quick_actions": [
+            {
+                "id": "department_summary",
+                "label": "📊 Department Summary",
+                "query": "Give me a summary of click rates by department",
+                "icon": "📊"
+            },
+            {
+                "id": "risky_users",
+                "label": "⚠️ Risky Users",
+                "query": "Who are the top 5 riskiest users and why?",
+                "icon": "⚠️"
+            },
+            {
+                "id": "phishing_tactics",
+                "label": "🧠 Phishing Tactics",
+                "query": "What are the most common phishing tactics?",
+                "icon": "🧠"
+            },
+            {
+                "id": "defense_tips",
+                "label": "🛡️ Defense Tips",
+                "query": "How can we protect against phishing attacks?",
+                "icon": "🛡️"
+            },
+            {
+                "id": "campaign_overview",
+                "label": "📈 Campaign Overview",
+                "query": "Give me an overview of our phishing campaigns",
+                "icon": "📈"
+            },
+            {
+                "id": "about_company",
+                "label": "🏢 About Us",
+                "query": "Tell me about our company",
+                "icon": "🏢"
+            }
+        ]
+    }
+
+# ============================================
+# Session Management Endpoints
+# ============================================
+
+@app.get("/session/{session_id}", tags=["Session"])
+async def get_session(session_id: str):
+    """Get session information and conversation history"""
+    if session_id not in app_state.sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    return {
+        "session_id": session_id,
+        **app_state.sessions[session_id]
+    }
+
+@app.delete("/session/{session_id}", tags=["Session"])
+async def clear_session(session_id: str):
+    """Clear a session's conversation history"""
+    if session_id in app_state.sessions:
+        app_state.sessions[session_id]["conversation_history"] = []
+        app_state.sessions[session_id]["message_count"] = 0
+        
+        # Also clear LLM orchestrator history
+        if app_state.llm_orchestrator:
+            app_state.llm_orchestrator.clear_history()
+    
+    return {"status": "success", "message": "Session cleared"}
 
 @app.post("/upload/phishing_campaign", response_model=UploadResponse, tags=["Upload"])
 async def upload_phishing_campaign(

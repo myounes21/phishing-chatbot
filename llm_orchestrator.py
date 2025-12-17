@@ -5,12 +5,24 @@ Generates detailed, well-structured responses using Groq LLM and RAG
 
 import os
 import json
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, AsyncGenerator
 from groq import AsyncGroq
 import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Few-shot examples for better responses
+FEW_SHOT_EXAMPLES = [
+    {
+        "query": "What is phishing?",
+        "response": "Phishing is basically when scammers try to trick you into giving away sensitive information like passwords or credit card numbers. They usually do this through fake emails, texts, or websites that look legitimate.\n\nThink of it like a con artist wearing a disguise - they pretend to be someone you trust (like your bank or a coworker) to get you to let your guard down. The most common types are:\n\n• **Email phishing** - Fake emails that look like they're from real companies\n• **Spear phishing** - Targeted attacks aimed at specific people\n• **Smishing** - Phishing via SMS text messages\n\nThe key to staying safe? Always verify before you click or share anything sensitive!"
+    },
+    {
+        "query": "What's the click rate for our campaigns?",
+        "response": "Looking at your campaign data, I can see some interesting patterns! Your overall click rate sits at around 12%, which is actually pretty typical for security awareness testing.\n\nHere's the breakdown by department:\n• Finance: 18% (highest - they might need extra training)\n• Sales: 14%\n• Engineering: 8% (lowest - nice work!)\n\nThe good news is that click rates tend to drop with each campaign as people get better at spotting the red flags. Want me to dig into any specific department or campaign?"
+    }
+]
 
 
 class LLMOrchestrator:
@@ -261,6 +273,128 @@ Answer this question naturally and conversationally. Be helpful and friendly, li
         """Clear conversation history"""
         self.conversation_history = []
         logger.info("🗑️ Conversation history cleared")
+    
+    async def stream_response(self, query: str, context: str, session_id: Optional[str] = None) -> AsyncGenerator[str, None]:
+        """
+        Stream response tokens in real-time.
+        
+        Args:
+            query: User query
+            context: Formatted context from RAG
+            session_id: Optional session ID for conversation memory
+            
+        Yields:
+            Response chunks as they're generated
+        """
+        messages = [
+            {"role": "system", "content": self._create_system_prompt()}
+        ]
+        
+        # Add few-shot examples for better response quality
+        for example in FEW_SHOT_EXAMPLES:
+            messages.append({"role": "user", "content": example["query"]})
+            messages.append({"role": "assistant", "content": example["response"]})
+        
+        # Add conversation history
+        for exchange in self.conversation_history[-2:]:
+            messages.append({"role": "user", "content": exchange["query"]})
+            messages.append({"role": "assistant", "content": exchange["response"]})
+        
+        # Build user message
+        if context and context.strip() != "No relevant context found.":
+            user_message = f"""User asked: "{query}"
+
+Here's some relevant information I found:
+{context}
+
+Please answer naturally and conversationally. Use the context to inform your answer."""
+        else:
+            user_message = f"""User asked: "{query}"
+
+Answer naturally and helpfully."""
+        
+        messages.append({"role": "user", "content": user_message})
+        
+        try:
+            # Stream from Groq
+            stream = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                top_p=0.95,
+                frequency_penalty=0.1,
+                presence_penalty=0.1,
+                stream=True
+            )
+            
+            full_response = ""
+            async for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    content = chunk.choices[0].delta.content
+                    full_response += content
+                    yield content
+            
+            # Save to conversation history
+            self.conversation_history.append({
+                "query": query,
+                "response": full_response
+            })
+            
+            if len(self.conversation_history) > 10:
+                self.conversation_history = self.conversation_history[-10:]
+                
+        except Exception as e:
+            logger.error(f"❌ Streaming error: {e}")
+            yield f"Sorry, I encountered an error: {str(e)}"
+    
+    async def generate_follow_up_questions(self, query: str, response: str) -> List[str]:
+        """
+        Generate suggested follow-up questions based on the conversation.
+        
+        Args:
+            query: Original user query
+            response: Bot's response
+            
+        Returns:
+            List of 3 suggested follow-up questions
+        """
+        try:
+            prompt = f"""Based on this conversation, suggest 3 natural follow-up questions the user might want to ask. Keep them short and conversational.
+
+User asked: "{query}"
+Assistant responded: "{response[:500]}..."
+
+Return ONLY a JSON array of 3 short questions, nothing else. Example format:
+["Question 1?", "Question 2?", "Question 3?"]"""
+
+            result = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=200
+            )
+            
+            text = result.choices[0].message.content.strip()
+            
+            # Try to parse JSON
+            try:
+                questions = json.loads(text)
+                if isinstance(questions, list):
+                    return questions[:3]
+            except json.JSONDecodeError:
+                pass
+            
+            # Fallback: return default questions
+            return [
+                "Can you tell me more about this?",
+                "What are the key takeaways?",
+                "How can I apply this?"
+            ]
+            
+        except Exception as e:
+            logger.error(f"❌ Error generating follow-ups: {e}")
+            return []
 
 
 if __name__ == "__main__":
