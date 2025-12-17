@@ -113,10 +113,11 @@ async def lifespan(app: FastAPI):
         app_state.vector_store.connect()
         
         # Create collections for different knowledge domains
+        # Use environment variables if set, otherwise use defaults
         collections = [
-            "phishing_insights",      # Campaign analytics
-            "company_knowledge",      # Organization info
-            "phishing_general",       # General phishing knowledge
+            os.getenv("COLLECTION_PHISHING", "phishing_insights"),      # Campaign analytics
+            os.getenv("COLLECTION_COMPANY", "company_knowledge"),        # Organization info
+            os.getenv("COLLECTION_GENERAL", "phishing_general"),         # General phishing knowledge
             "pdf_documents"          # PDF documents
         ]
         
@@ -138,11 +139,13 @@ async def lifespan(app: FastAPI):
         # Initialize LLM Orchestrator
         if groq_api_key:
             logger.info("🤖 Connecting to Groq LLM...")
+            groq_model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
             app_state.llm_orchestrator = LLMOrchestrator(
                 api_key=groq_api_key,
+                model=groq_model,
                 rag_retriever=app_state.rag_retriever
             )
-            logger.info("✅ LLM orchestrator ready")
+            logger.info(f"✅ LLM orchestrator ready (model: {groq_model})")
         
         app_state.initialized = True
         logger.info("✨ System fully initialized and ready!")
@@ -167,10 +170,17 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS Middleware - Allow all origins for now (restrict in production)
+# CORS Middleware - Configure from environment
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "*")
+if allowed_origins_env == "*":
+    allowed_origins = ["*"]
+else:
+    # Split comma-separated origins
+    allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure this for your frontend domain
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -571,11 +581,17 @@ if __name__ == "__main__":
     import uvicorn
     
     port = int(os.getenv("PORT", 8000))
+    host = os.getenv("HOST", "0.0.0.0")
+    log_level = os.getenv("LOG_LEVEL", "info").lower()
+    environment = os.getenv("ENVIRONMENT", "development").lower()
+    
+    # Only enable reload in development
+    reload = (environment == "development")
     
     uvicorn.run(
         "main:app",
-        host="0.0.0.0",
+        host=host,
         port=port,
-        reload=True,  # Disable in production
-        log_level="info"
+        reload=reload,
+        log_level=log_level
     )

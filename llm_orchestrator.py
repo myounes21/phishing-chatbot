@@ -21,7 +21,7 @@ class LLMOrchestrator:
     
     def __init__(self, 
                  api_key: Optional[str] = None,
-                 model: str = "llama-3.3-70b-versatile",
+                 model: Optional[str] = None,
                  rag_retriever=None,
                  data_processor=None):
         """
@@ -29,7 +29,7 @@ class LLMOrchestrator:
         
         Args:
             api_key: Groq API key
-            model: Groq model to use
+            model: Groq model to use (defaults to GROQ_MODEL env var or "llama-3.3-70b-versatile")
             rag_retriever: RAGRetriever instance
             data_processor: Optional PhishingDataProcessor for quantitative queries
         """
@@ -37,7 +37,10 @@ class LLMOrchestrator:
         if not self.api_key:
             raise ValueError("Groq API key required")
         
-        self.model = model
+        self.model = model or os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
+        self.temperature = float(os.getenv('LLM_TEMPERATURE', '0.4'))
+        self.max_tokens = int(os.getenv('LLM_MAX_TOKENS', '4096'))
+        
         self.client = Groq(api_key=self.api_key)
         self.rag_retriever = rag_retriever
         self.data_processor = data_processor
@@ -169,10 +172,11 @@ class LLMOrchestrator:
             
             # Retrieve relevant context
             logger.info("🔍 Retrieving context from vector database...")
+            rag_top_k = int(os.getenv('RAG_TOP_K', '8'))
             contexts = self.rag_retriever.retrieve_context(
                 query=query,
                 collection=collection,
-                top_k=8  # Get more contexts for comprehensive responses
+                top_k=rag_top_k  # Get more contexts for comprehensive responses
             )
             
             if not contexts:
@@ -245,12 +249,12 @@ Make sure to cite specific data points from the context when relevant."""
         messages.append({"role": "user", "content": user_message})
         
         try:
-            # Call Groq API with increased token limit for detailed responses
+            # Call Groq API with configurable parameters from environment
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
-                temperature=0.4,  # Slightly higher for more natural language
-                max_tokens=4096,  # Allow for long, detailed responses
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
                 top_p=0.9
             )
             

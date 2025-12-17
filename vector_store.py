@@ -11,6 +11,7 @@ from qdrant_client.models import (
 from typing import List, Dict, Any, Optional
 import logging
 import uuid
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -166,8 +167,8 @@ class VectorStore:
     def search(self, 
                query_vector: List[float],
                collection_name: str = "phishing_insights",
-               top_k: int = 5,
-               score_threshold: Optional[float] = 0.5,
+               top_k: Optional[int] = None,
+               score_threshold: Optional[float] = None,
                filter_dict: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """
         Search for similar documents in a collection
@@ -175,8 +176,8 @@ class VectorStore:
         Args:
             query_vector: Query embedding vector
             collection_name: Collection to search
-            top_k: Number of results to return
-            score_threshold: Minimum similarity score
+            top_k: Number of results to return (defaults to RAG_TOP_K env var or 5)
+            score_threshold: Minimum similarity score (defaults to RAG_SIMILARITY_THRESHOLD env var or 0.5)
             filter_dict: Optional metadata filters
             
         Returns:
@@ -184,6 +185,12 @@ class VectorStore:
         """
         if self.client is None:
             self.connect()
+        
+        # Use environment variables if not provided
+        if top_k is None:
+            top_k = int(os.getenv('RAG_TOP_K', '5'))
+        if score_threshold is None:
+            score_threshold = float(os.getenv('RAG_SIMILARITY_THRESHOLD', '0.5'))
         
         try:
             # Prepare filter
