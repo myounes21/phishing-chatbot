@@ -87,12 +87,16 @@ async def lifespan(app: FastAPI):
     try:
         # Get configuration from environment
         groq_api_key = os.getenv("GROQ_API_KEY")
+        mixedbread_api_key = os.getenv("MIXEDBREAD_API_KEY")
         qdrant_url = os.getenv("QDRANT_URL")  # Qdrant Cloud URL
         qdrant_api_key = os.getenv("QDRANT_API_KEY")  # Qdrant Cloud API Key
         
         if not groq_api_key:
             logger.warning("⚠️ GROQ_API_KEY not set - LLM features will be limited")
         
+        if not mixedbread_api_key:
+            logger.warning("⚠️ MIXEDBREAD_API_KEY not set - Embedding generation will fail")
+
         # Initialize Embedding Generator
         logger.info("📊 Initializing embedding generator...")
         app_state.embedding_generator = EmbeddingGenerator()
