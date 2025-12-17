@@ -110,9 +110,13 @@ async def lifespan(app: FastAPI):
         
         # Initialize Vector Store (Qdrant Cloud)
         logger.info("🗄️ Connecting to Qdrant Cloud...")
+        # Get dimension from embedding generator if available, otherwise use default
+        vector_size = app_state.embedding_generator.dimension or 1024
+
         app_state.vector_store = VectorStore(
             url=qdrant_url,
-            api_key=qdrant_api_key
+            api_key=qdrant_api_key,
+            vector_size=vector_size
         )
         await app_state.vector_store.connect()
         

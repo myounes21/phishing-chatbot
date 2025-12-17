@@ -26,14 +26,14 @@ class VectorStore:
     def __init__(self, 
                  url: Optional[str] = None,
                  api_key: Optional[str] = None,
-                 vector_size: int = 384):
+                 vector_size: int = 1024):
         """
         Initialize the vector store
         
         Args:
             url: Qdrant Cloud URL (e.g., https://xyz.qdrant.io)
             api_key: Qdrant Cloud API key
-            vector_size: Dimension of vectors (default: 384 for MiniLM)
+            vector_size: Dimension of vectors (default: 1024 for mixedbread-ai)
         """
         self.url = url
         self.api_key = api_key
