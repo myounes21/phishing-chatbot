@@ -245,7 +245,7 @@ class VectorStore:
                                collections: List[str],
                                top_k_per_collection: int = 3) -> Dict[str, List[Dict[str, Any]]]:
         """
-        Search across multiple collections
+        Search across multiple collections in parallel for speed
         
         Args:
             query_vector: Query embedding
@@ -255,20 +255,25 @@ class VectorStore:
         Returns:
             Dictionary mapping collection name to results
         """
-        results = {}
+        import asyncio
         
-        for collection in collections:
+        async def search_one(collection: str):
             try:
-                collection_results = await self.search(
+                return collection, await self.search(
                     query_vector=query_vector,
                     collection_name=collection,
                     top_k=top_k_per_collection
                 )
-                results[collection] = collection_results
             except Exception as e:
                 logger.warning(f"⚠️ Could not search collection '{collection}': {e}")
-                results[collection] = []
+                return collection, []
         
+        # Search all collections in parallel
+        tasks = [search_one(coll) for coll in collections]
+        results_list = await asyncio.gather(*tasks)
+        
+        # Convert to dictionary
+        results = {coll: res for coll, res in results_list}
         return results
     
     async def get_all_documents(self,
@@ -398,12 +403,12 @@ class RAGRetriever:
             )
             return results
         
-        # Auto-detect: Search across all collections
+        # Auto-detect: Search across all collections (parallelized)
         collections = ["phishing_insights", "company_knowledge", "phishing_general", "pdf_documents"]
         all_results = await self.vector_store.search_multi_collection(
             query_vector=query_embedding.tolist(),
             collections=collections,
-            top_k_per_collection=3
+            top_k_per_collection=2  # Reduced from 3 for speed
         )
         
         # Combine and sort by relevance

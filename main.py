@@ -480,8 +480,8 @@ async def query_stream(request: StreamQueryRequest):
             # Send typing indicator
             yield f"data: {json.dumps({'type': 'typing', 'status': 'start'})}\n\n"
             
-            # Get context
-            rag_top_k = int(os.getenv('RAG_TOP_K', '8'))
+            # Get context (use smaller top_k for faster responses)
+            rag_top_k = int(os.getenv('RAG_TOP_K', '3'))
             contexts = await app_state.rag_retriever.retrieve_context(
                 query=request.query,
                 collection=request.collection,
@@ -512,17 +512,11 @@ async def query_stream(request: StreamQueryRequest):
                 full_response += chunk
                 yield f"data: {json.dumps({'type': 'content', 'content': chunk})}\n\n"
             
-            # Generate suggested follow-up questions
-            suggested_questions = await app_state.llm_orchestrator.generate_follow_up_questions(
-                query=request.query,
-                response=full_response
-            )
-            
             # Save to session
             add_to_session(session_id, request.query, full_response, message_id)
             
-            # Send completion with sources and suggestions
-            yield f"data: {json.dumps({'type': 'done', 'sources': sources, 'suggested_questions': suggested_questions, 'message_id': message_id})}\n\n"
+            # Send completion with sources (skip follow-up questions for speed)
+            yield f"data: {json.dumps({'type': 'done', 'sources': sources, 'suggested_questions': [], 'message_id': message_id})}\n\n"
             
         except Exception as e:
             logger.error(f"❌ Streaming error: {e}")

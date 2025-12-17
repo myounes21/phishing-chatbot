@@ -122,11 +122,11 @@ Remember: You're here to help, not to impress. Keep it natural, friendly, and ge
             
             # Retrieve relevant context (auto-detect is handled by RAGRetriever)
             logger.info("🔍 Retrieving context from vector database...")
-            rag_top_k = int(os.getenv('RAG_TOP_K', '8'))
+            rag_top_k = int(os.getenv('RAG_TOP_K', '3'))  # Reduced for speed
             contexts = await self.rag_retriever.retrieve_context(
                 query=query,
                 collection=collection,
-                top_k=rag_top_k  # Get more contexts for comprehensive responses
+                top_k=rag_top_k
             )
             
             if not contexts:
