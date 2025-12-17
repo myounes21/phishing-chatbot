@@ -20,7 +20,7 @@ class PhishingDataProcessor:
     
     def __init__(self, csv_path: str):
         """
-        Initialize the data processor
+        Initialize the data processor and load data
         
         Args:
             csv_path: Path to the CSV file containing phishing campaign data
@@ -28,6 +28,7 @@ class PhishingDataProcessor:
         self.csv_path = csv_path
         self.df = None
         self.stats = {}
+        self.load_data()
         
     def load_data(self) -> pd.DataFrame:
         """Load and validate CSV data"""
@@ -55,9 +56,6 @@ class PhishingDataProcessor:
         Returns:
             Dictionary mapping department to click rate
         """
-        if self.df is None:
-            self.load_data()
-        
         click_rates = {}
         
         for dept in self.df['Department'].unique():
@@ -78,9 +76,6 @@ class PhishingDataProcessor:
         Returns:
             DataFrame with template statistics
         """
-        if self.df is None:
-            self.load_data()
-        
         template_stats = self.df.groupby('Template').agg({
             'User_ID': 'count',
             'Action': lambda x: (x == 'Clicked').sum(),
@@ -112,9 +107,6 @@ class PhishingDataProcessor:
         Returns:
             DataFrame with high-risk user information
         """
-        if self.df is None:
-            self.load_data()
-        
         # Calculate risk score for each user
         user_stats = self.df.groupby('User_ID').agg({
             'Action': lambda x: (x == 'Clicked').sum(),
@@ -149,9 +141,6 @@ class PhishingDataProcessor:
         Returns:
             Dictionary with response time statistics
         """
-        if self.df is None:
-            self.load_data()
-        
         clicked_data = self.df[self.df['Action'] == 'Clicked']
         
         response_stats = {
@@ -184,9 +173,6 @@ class PhishingDataProcessor:
         Returns:
             Dictionary with department statistics
         """
-        if self.df is None:
-            self.load_data()
-        
         dept_data = self.df[self.df['Department'] == department]
         
         if len(dept_data) == 0:
@@ -235,9 +221,6 @@ class PhishingDataProcessor:
         Returns:
             Dictionary containing all analysis results
         """
-        if self.df is None:
-            self.load_data()
-        
         report = {
             'overview': {
                 'total_emails': len(self.df),
@@ -259,49 +242,11 @@ class PhishingDataProcessor:
         
         logger.info("Generated full analysis report")
         return report
-    
-    def query_data(self, query_type: str, **kwargs) -> any:
-        """
-        Generic query interface for the LLM to use
-        
-        Args:
-            query_type: Type of query (click_rate, template_stats, risk_users, etc.)
-            **kwargs: Additional parameters for the query
-            
-        Returns:
-            Query results
-        """
-        if self.df is None:
-            self.load_data()
-        
-        query_handlers = {
-            'click_rate': lambda: self.calculate_click_rates(),
-            'department_click_rate': lambda: self.calculate_click_rates().get(
-                kwargs.get('department'), 0
-            ),
-            'template_effectiveness': lambda: self.calculate_template_effectiveness(),
-            'high_risk_users': lambda: self.identify_high_risk_users(
-                kwargs.get('top_n', 10)
-            ),
-            'response_times': lambda: self.analyze_response_times(),
-            'department_summary': lambda: self.get_department_summary(
-                kwargs.get('department')
-            ),
-            'full_report': lambda: self.generate_full_report()
-        }
-        
-        handler = query_handlers.get(query_type)
-        
-        if handler is None:
-            raise ValueError(f"Unknown query type: {query_type}")
-        
-        return handler()
 
 
 if __name__ == "__main__":
     # Test the data processor
     processor = PhishingDataProcessor("sample_phishing_data.csv")
-    processor.load_data()
     
     print("\n=== Click Rates by Department ===")
     click_rates = processor.calculate_click_rates()

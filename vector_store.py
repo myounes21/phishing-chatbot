@@ -3,7 +3,7 @@ Vector Store Module - Qdrant Cloud Integration
 Supports multiple collections for different knowledge domains
 """
 
-from qdrant_client import QdrantClient
+from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import (
     Distance, VectorParams, PointStruct, 
     Filter, FieldCondition, MatchValue
@@ -40,20 +40,20 @@ class VectorStore:
         self.vector_size = vector_size
         self.client = None
         
-    def connect(self):
+    async def connect(self):
         """Connect to Qdrant Cloud or fallback to in-memory"""
         
         # Try Qdrant Cloud first
         if self.url and self.api_key:
             try:
                 logger.info(f"🔗 Connecting to Qdrant Cloud at {self.url}")
-                self.client = QdrantClient(
+                self.client = AsyncQdrantClient(
                     url=self.url,
                     api_key=self.api_key,
                     timeout=10
                 )
                 # Test connection
-                self.client.get_collections()
+                await self.client.get_collections()
                 logger.info("✅ Successfully connected to Qdrant Cloud")
                 return
                 
@@ -63,7 +63,7 @@ class VectorStore:
         
         # Fallback to in-memory storage
         try:
-            self.client = QdrantClient(":memory:")
+            self.client = AsyncQdrantClient(":memory:")
             logger.info("✅ Using in-memory Qdrant storage")
             logger.warning("⚠️ Data will not persist after restart")
             logger.info("💡 To use Qdrant Cloud, set QDRANT_URL and QDRANT_API_KEY")
@@ -72,7 +72,7 @@ class VectorStore:
             logger.error(f"❌ Failed to initialize Qdrant: {e}")
             raise RuntimeError("Could not initialize vector storage")
     
-    def create_collection(self, 
+    async def create_collection(self,
                          collection_name: str,
                          recreate: bool = False):
         """
@@ -83,23 +83,24 @@ class VectorStore:
             recreate: Whether to recreate if it exists
         """
         if self.client is None:
-            self.connect()
+            await self.connect()
         
         try:
             # Check if collection exists
-            collections = self.client.get_collections().collections
+            collections_response = await self.client.get_collections()
+            collections = collections_response.collections
             collection_exists = any(
                 c.name == collection_name for c in collections
             )
             
             if collection_exists and recreate:
                 logger.info(f"🗑️ Deleting existing collection: {collection_name}")
-                self.client.delete_collection(collection_name)
+                await self.client.delete_collection(collection_name)
                 collection_exists = False
             
             if not collection_exists:
                 logger.info(f"📦 Creating collection: {collection_name}")
-                self.client.create_collection(
+                await self.client.create_collection(
                     collection_name=collection_name,
                     vectors_config=VectorParams(
                         size=self.vector_size,
@@ -114,7 +115,7 @@ class VectorStore:
             logger.error(f"❌ Error with collection {collection_name}: {e}")
             raise
     
-    def add_documents(self, 
+    async def add_documents(self,
                      documents: List[Dict[str, Any]],
                      collection_name: str = "phishing_insights"):
         """
@@ -125,7 +126,7 @@ class VectorStore:
             collection_name: Target collection name
         """
         if self.client is None:
-            self.connect()
+            await self.connect()
         
         try:
             points = []
@@ -161,7 +162,7 @@ class VectorStore:
             batch_size = 100
             for i in range(0, len(points), batch_size):
                 batch = points[i:i + batch_size]
-                self.client.upsert(
+                await self.client.upsert(
                     collection_name=collection_name,
                     points=batch
                 )
@@ -172,7 +173,7 @@ class VectorStore:
             logger.error(f"❌ Error adding documents to {collection_name}: {e}")
             raise
     
-    def search(self, 
+    async def search(self,
                query_vector: List[float],
                collection_name: str = "phishing_insights",
                top_k: Optional[int] = None,
@@ -192,7 +193,7 @@ class VectorStore:
             List of search results with scores and payloads
         """
         if self.client is None:
-            self.connect()
+            await self.connect()
         
         # Use environment variables if not provided
         if top_k is None:
@@ -215,13 +216,14 @@ class VectorStore:
                 query_filter = Filter(must=conditions) if conditions else None
             
             # Perform search
-            results = self.client.query_points(
+            search_result = await self.client.query_points(
                 collection_name=collection_name,
                 query=query_vector,
                 limit=top_k,
                 query_filter=query_filter,
                 score_threshold=score_threshold
-            ).points
+            )
+            results = search_result.points
             
             # Format results
             formatted_results = []
@@ -238,7 +240,7 @@ class VectorStore:
             logger.error(f"❌ Search error in {collection_name}: {e}")
             return []
     
-    def search_multi_collection(self,
+    async def search_multi_collection(self,
                                query_vector: List[float],
                                collections: List[str],
                                top_k_per_collection: int = 3) -> Dict[str, List[Dict[str, Any]]]:
@@ -257,7 +259,7 @@ class VectorStore:
         
         for collection in collections:
             try:
-                collection_results = self.search(
+                collection_results = await self.search(
                     query_vector=query_vector,
                     collection_name=collection,
                     top_k=top_k_per_collection
@@ -269,7 +271,7 @@ class VectorStore:
         
         return results
     
-    def get_all_documents(self,
+    async def get_all_documents(self,
                          collection_name: str = "phishing_insights",
                          limit: int = 100) -> List[Dict[str, Any]]:
         """
@@ -283,13 +285,14 @@ class VectorStore:
             List of documents
         """
         if self.client is None:
-            self.connect()
+            await self.connect()
         
         try:
-            results = self.client.scroll(
+            scroll_result = await self.client.scroll(
                 collection_name=collection_name,
                 limit=limit
-            )[0]
+            )
+            results = scroll_result[0]
             
             documents = [point.payload for point in results]
             logger.info(f"📥 Retrieved {len(documents)} documents from '{collection_name}'")
@@ -300,7 +303,7 @@ class VectorStore:
             logger.error(f"❌ Error retrieving documents from {collection_name}: {e}")
             return []
     
-    def get_collection_info(self, collection_name: str) -> Dict[str, Any]:
+    async def get_collection_info(self, collection_name: str) -> Dict[str, Any]:
         """
         Get information about a collection
         
@@ -311,10 +314,10 @@ class VectorStore:
             Dictionary with collection statistics
         """
         if self.client is None:
-            self.connect()
+            await self.connect()
         
         try:
-            info = self.client.get_collection(collection_name)
+            info = await self.client.get_collection(collection_name)
             
             vectors_config = info.config.params.vectors
             vector_size = 0
@@ -339,13 +342,13 @@ class VectorStore:
             logger.error(f"❌ Error getting info for {collection_name}: {e}")
             return {}
     
-    def delete_collection(self, collection_name: str):
+    async def delete_collection(self, collection_name: str):
         """Delete a collection"""
         if self.client is None:
-            self.connect()
+            await self.connect()
         
         try:
-            self.client.delete_collection(collection_name)
+            await self.client.delete_collection(collection_name)
             logger.info(f"🗑️ Deleted collection: {collection_name}")
         except Exception as e:
             logger.error(f"❌ Error deleting collection {collection_name}: {e}")
@@ -368,7 +371,7 @@ class RAGRetriever:
         self.vector_store = vector_store
         self.embedding_generator = embedding_generator
     
-    def retrieve_context(self, 
+    async def retrieve_context(self,
                         query: str,
                         collection: Optional[str] = None,
                         top_k: int = 5) -> List[Dict[str, Any]]:
@@ -388,7 +391,7 @@ class RAGRetriever:
         
         # If specific collection requested
         if collection:
-            results = self.vector_store.search(
+            results = await self.vector_store.search(
                 query_vector=query_embedding.tolist(),
                 collection_name=collection,
                 top_k=top_k
@@ -397,7 +400,7 @@ class RAGRetriever:
         
         # Auto-detect: Search across all collections
         collections = ["phishing_insights", "company_knowledge", "phishing_general", "pdf_documents"]
-        all_results = self.vector_store.search_multi_collection(
+        all_results = await self.vector_store.search_multi_collection(
             query_vector=query_embedding.tolist(),
             collections=collections,
             top_k_per_collection=3
@@ -448,22 +451,26 @@ class RAGRetriever:
 
 if __name__ == "__main__":
     # Test connection to Qdrant Cloud
+    import asyncio
     import os
     from dotenv import load_dotenv
     
     load_dotenv()
     
-    url = os.getenv("QDRANT_URL")
-    api_key = os.getenv("QDRANT_API_KEY")
+    async def main():
+        url = os.getenv("QDRANT_URL")
+        api_key = os.getenv("QDRANT_API_KEY")
+
+        if not url or not api_key:
+            print("⚠️ QDRANT_URL and QDRANT_API_KEY not set")
+            print("Using in-memory storage for testing...")
+
+        vector_store = VectorStore(url=url, api_key=api_key)
+        await vector_store.connect()
+
+        # Test creating collections
+        await vector_store.create_collection("test_collection", recreate=True)
+
+        print("✅ Vector store test completed")
     
-    if not url or not api_key:
-        print("⚠️ QDRANT_URL and QDRANT_API_KEY not set")
-        print("Using in-memory storage for testing...")
-    
-    vector_store = VectorStore(url=url, api_key=api_key)
-    vector_store.connect()
-    
-    # Test creating collections
-    vector_store.create_collection("test_collection", recreate=True)
-    
-    print("✅ Vector store test completed")
+    asyncio.run(main())

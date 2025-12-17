@@ -110,7 +110,7 @@ async def lifespan(app: FastAPI):
             url=qdrant_url,
             api_key=qdrant_api_key
         )
-        app_state.vector_store.connect()
+        await app_state.vector_store.connect()
         
         # Create collections for different knowledge domains
         # Use environment variables if set, otherwise use defaults
@@ -122,7 +122,7 @@ async def lifespan(app: FastAPI):
         ]
         
         for collection in collections:
-            app_state.vector_store.create_collection(
+            await app_state.vector_store.create_collection(
                 collection_name=collection,
                 recreate=False  # Don't delete existing data
             )
@@ -214,7 +214,7 @@ async def health_check():
     if app_state.vector_store:
         try:
             # Get all collections from Qdrant
-            collections_info = app_state.vector_store.client.get_collections()
+            collections_info = await app_state.vector_store.client.get_collections()
             collections = [col.name for col in collections_info.collections]
         except Exception as e:
             logger.error(f"Error fetching collections: {e}")
@@ -244,7 +244,7 @@ async def query_agent(request: QueryRequest):
         logger.info(f"📥 Query received: {request.query[:100]}...")
         
         # Process query through orchestrator
-        response_text, sources = app_state.llm_orchestrator.process_query(
+        response_text, sources = await app_state.llm_orchestrator.process_query(
             query=request.query,
             collection=request.collection,
             include_sources=request.include_sources
@@ -300,7 +300,7 @@ async def upload_phishing_campaign(
         
         # Process with PhishingDataProcessor
         processor = PhishingDataProcessor(temp_path)
-        processor.load_data()
+        # processor.load_data() - Now called in __init__
         logger.info(f"✅ Loaded {len(processor.df)} records")
         
         # Generate insights
@@ -319,7 +319,7 @@ async def upload_phishing_campaign(
         insights_with_embeddings = app_state.embedding_generator.encode_insights(insights)
         
         # Store in Qdrant Cloud (phishing_insights collection)
-        app_state.vector_store.add_documents(
+        await app_state.vector_store.add_documents(
             documents=insights_with_embeddings,
             collection_name="phishing_insights"
         )
@@ -380,7 +380,7 @@ async def upload_company_knowledge(
             doc['embedding'] = emb.tolist()
         
         # Store in Qdrant Cloud (company_knowledge collection)
-        app_state.vector_store.add_documents(
+        await app_state.vector_store.add_documents(
             documents=documents,
             collection_name="company_knowledge"
         )
@@ -436,7 +436,7 @@ async def upload_phishing_general(
             doc['embedding'] = emb.tolist()
         
         # Store in Qdrant Cloud (phishing_general collection)
-        app_state.vector_store.add_documents(
+        await app_state.vector_store.add_documents(
             documents=documents,
             collection_name="phishing_general"
         )
@@ -507,7 +507,7 @@ async def upload_pdf_document(
             chunk['embedding'] = emb.tolist()
         
         # Store in Qdrant Cloud (pdf_documents collection)
-        app_state.vector_store.add_documents(
+        await app_state.vector_store.add_documents(
             documents=chunks,
             collection_name="pdf_documents"
         )
@@ -535,7 +535,7 @@ async def get_collection_info(collection_name: str):
         raise HTTPException(status_code=503, detail="Vector store not initialized")
     
     try:
-        info = app_state.vector_store.get_collection_info(collection_name)
+        info = await app_state.vector_store.get_collection_info(collection_name)
         return info
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Collection not found: {str(e)}")
@@ -549,7 +549,7 @@ async def list_campaigns():
     try:
         # Query all documents from phishing_insights collection
         # This is a simplified version - in production, you'd want pagination
-        results = app_state.vector_store.get_all_documents(
+        results = await app_state.vector_store.get_all_documents(
             collection_name="phishing_insights",
             limit=1000
         )
