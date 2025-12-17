@@ -320,3 +320,6 @@ vector_store.add_documents([point], collection_name="phishing_insights")
 - Copy one of the upload endpoints in `main.py`
 - Change collection name and processing logic
 
+
+
+

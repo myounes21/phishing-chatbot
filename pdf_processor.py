@@ -126,45 +126,8 @@ class PDFProcessor:
                 'source_type': 'pdf_document'
             })
         
-        # If chunks are still too large, split them further
-        final_chunks = []
-        for chunk in chunks:
-            if len(chunk['text']) > self.chunk_size:
-                # Split by sentences
-                sentences = chunk['text'].split('. ')
-                temp_chunk = ""
-                sub_index = 0
-                
-                for sentence in sentences:
-                    if len(temp_chunk) + len(sentence) + 2 > self.chunk_size and temp_chunk:
-                        final_chunks.append({
-                            'id': f"{chunk['id']}_sub_{sub_index}",
-                            'text': temp_chunk.strip() + '.',
-                            'title': chunk['title'],
-                            'chunk_index': chunk['chunk_index'],
-                            'source_type': 'pdf_document'
-                        })
-                        sub_index += 1
-                        temp_chunk = sentence
-                    else:
-                        if temp_chunk:
-                            temp_chunk += '. ' + sentence
-                        else:
-                            temp_chunk = sentence
-                
-                if temp_chunk.strip():
-                    final_chunks.append({
-                        'id': f"{chunk['id']}_sub_{sub_index}",
-                        'text': temp_chunk.strip() + ('' if temp_chunk.endswith('.') else '.'),
-                        'title': chunk['title'],
-                        'chunk_index': chunk['chunk_index'],
-                        'source_type': 'pdf_document'
-                    })
-            else:
-                final_chunks.append(chunk)
-        
-        logger.info(f"✅ Created {len(final_chunks)} chunks from PDF text")
-        return final_chunks
+        logger.info(f"✅ Created {len(chunks)} chunks from PDF text")
+        return chunks
     
     def process_pdf(self, pdf_bytes: bytes, title: str, category: str = "general", 
                     metadata: Dict[str, Any] = None) -> List[Dict[str, Any]]:
@@ -207,4 +170,3 @@ if __name__ == "__main__":
     #     pdf_bytes = f.read()
     # chunks = processor.process_pdf(pdf_bytes, title="Test Document", category="test")
     # print(f"Created {len(chunks)} chunks")
-

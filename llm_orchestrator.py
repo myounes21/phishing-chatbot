@@ -6,7 +6,7 @@ Generates detailed, well-structured responses using Groq LLM and RAG
 import os
 import json
 from typing import Dict, List, Any, Optional, Tuple
-from groq import Groq
+from groq import AsyncGroq
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -41,7 +41,7 @@ class LLMOrchestrator:
         self.temperature = float(os.getenv('LLM_TEMPERATURE', '0.4'))
         self.max_tokens = int(os.getenv('LLM_MAX_TOKENS', '4096'))
         
-        self.client = Groq(api_key=self.api_key)
+        self.client = AsyncGroq(api_key=self.api_key)
         self.rag_retriever = rag_retriever
         self.data_processor = data_processor
         self.conversation_history = []
@@ -97,56 +97,8 @@ class LLMOrchestrator:
 - Key takeaways or recommendations
 - Closing with next steps or further assistance offer
 """
-
-    def _detect_query_type(self, query: str) -> Dict[str, Any]:
-        """
-        Detect query type and determine which collections to search
-        
-        Args:
-            query: User query
-            
-        Returns:
-            Dictionary with query metadata
-        """
-        query_lower = query.lower()
-        
-        # Detection keywords
-        phishing_keywords = ['click rate', 'department', 'vulnerable', 'risk', 'template', 
-                            'user', 'campaign', 'phishing simulation', 'security awareness']
-        company_keywords = ['who are we', 'what do', 'company', 'organization', 'mission',
-                           'values', 'services', 'about us', 'team']
-        general_keywords = ['what is phishing', 'how to', 'defense', 'tactics', 'prevent',
-                           'protect', 'awareness', 'training', 'best practices']
-        pdf_keywords = ['document', 'pdf', 'file', 'report', 'policy', 'procedure', 
-                       'manual', 'guide', 'specification', 'contract']
-        
-        # Count keyword matches
-        phishing_score = sum(1 for kw in phishing_keywords if kw in query_lower)
-        company_score = sum(1 for kw in company_keywords if kw in query_lower)
-        general_score = sum(1 for kw in general_keywords if kw in query_lower)
-        pdf_score = sum(1 for kw in pdf_keywords if kw in query_lower)
-        
-        # Determine primary type
-        scores = {
-            'phishing_insights': phishing_score,
-            'company_knowledge': company_score,
-            'phishing_general': general_score,
-            'pdf_documents': pdf_score
-        }
-        
-        primary_type = max(scores, key=scores.get)
-        
-        # If scores are similar, search all
-        search_all = max(scores.values()) - min(scores.values()) <= 1
-        
-        return {
-            'primary_collection': primary_type if not search_all else None,
-            'search_all_collections': search_all,
-            'confidence': max(scores.values()),
-            'query_complexity': 'complex' if len(query.split()) > 15 else 'simple'
-        }
     
-    def process_query(self, 
+    async def process_query(self, 
                      query: str,
                      collection: Optional[str] = None,
                      include_sources: bool = True) -> Tuple[str, Optional[List[Dict]]]:
@@ -164,16 +116,10 @@ class LLMOrchestrator:
         try:
             logger.info(f"🤔 Processing query: {query[:100]}...")
             
-            # Detect query type if collection not specified
-            if not collection:
-                query_metadata = self._detect_query_type(query)
-                collection = query_metadata['primary_collection']
-                logger.info(f"📊 Detected primary collection: {collection}")
-            
-            # Retrieve relevant context
+            # Retrieve relevant context (auto-detect is handled by RAGRetriever)
             logger.info("🔍 Retrieving context from vector database...")
             rag_top_k = int(os.getenv('RAG_TOP_K', '8'))
-            contexts = self.rag_retriever.retrieve_context(
+            contexts = await self.rag_retriever.retrieve_context(
                 query=query,
                 collection=collection,
                 top_k=rag_top_k  # Get more contexts for comprehensive responses
@@ -188,7 +134,7 @@ class LLMOrchestrator:
             
             # Generate response
             logger.info("🤖 Generating detailed response...")
-            response_text = self._generate_detailed_response(query, formatted_context)
+            response_text = await self._generate_detailed_response(query, formatted_context)
             
             # Prepare sources for return
             sources = None
@@ -210,7 +156,7 @@ class LLMOrchestrator:
             logger.error(f"❌ Error processing query: {e}")
             return f"I encountered an error processing your query: {str(e)}", None
     
-    def _generate_detailed_response(self, query: str, context: str) -> str:
+    async def _generate_detailed_response(self, query: str, context: str) -> str:
         """
         Generate a detailed, well-structured response
         
@@ -250,7 +196,7 @@ Make sure to cite specific data points from the context when relevant."""
         
         try:
             # Call Groq API with configurable parameters from environment
-            response = self.client.chat.completions.create(
+            response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 temperature=self.temperature,
@@ -276,7 +222,7 @@ Make sure to cite specific data points from the context when relevant."""
             logger.error(f"❌ Error calling Groq API: {e}")
             raise
     
-    def generate_summary(self, campaign_id: Optional[str] = None) -> str:
+    async def generate_summary(self, campaign_id: Optional[str] = None) -> str:
         """
         Generate a comprehensive campaign summary
         
@@ -288,10 +234,10 @@ Make sure to cite specific data points from the context when relevant."""
         """
         query = f"Provide a comprehensive summary and analysis of campaign {campaign_id}" if campaign_id else "Provide a comprehensive summary of all phishing campaigns"
         
-        response, _ = self.process_query(query, collection="phishing_insights", include_sources=False)
+        response, _ = await self.process_query(query, collection="phishing_insights", include_sources=False)
         return response
     
-    def explain_concept(self, concept: str) -> str:
+    async def explain_concept(self, concept: str) -> str:
         """
         Explain a phishing or security concept in detail
         
@@ -302,10 +248,10 @@ Make sure to cite specific data points from the context when relevant."""
             Detailed explanation
         """
         query = f"Explain in detail: {concept}"
-        response, _ = self.process_query(query, collection="phishing_general", include_sources=False)
+        response, _ = await self.process_query(query, collection="phishing_general", include_sources=False)
         return response
     
-    def company_info(self, question: str) -> str:
+    async def company_info(self, question: str) -> str:
         """
         Answer questions about the company
         
@@ -315,7 +261,7 @@ Make sure to cite specific data points from the context when relevant."""
         Returns:
             Detailed answer
         """
-        response, _ = self.process_query(question, collection="company_knowledge", include_sources=False)
+        response, _ = await self.process_query(question, collection="company_knowledge", include_sources=False)
         return response
     
     def clear_history(self):
@@ -325,6 +271,8 @@ Make sure to cite specific data points from the context when relevant."""
 
 
 if __name__ == "__main__":
+    import asyncio
+    
     # Test the orchestrator
     print("Note: This test requires GROQ_API_KEY environment variable")
     
@@ -332,19 +280,13 @@ if __name__ == "__main__":
     if not api_key:
         print("❌ GROQ_API_KEY not found")
         exit(1)
-    
-    # This is a minimal test - full test requires RAG retriever
-    orchestrator = LLMOrchestrator(api_key=api_key)
-    print("✅ LLM Orchestrator initialized")
-    
-    # Test query detection
-    test_queries = [
-        "What is the click rate for Finance department?",
-        "Who are we as a company?",
-        "How can employees defend against phishing?"
-    ]
-    
-    for query in test_queries:
-        metadata = orchestrator._detect_query_type(query)
-        print(f"\nQuery: {query}")
-        print(f"Primary Collection: {metadata['primary_collection']}")
+        
+    async def main():
+        # This is a minimal test - full test requires RAG retriever
+        orchestrator = LLMOrchestrator(api_key=api_key)
+        print("✅ LLM Orchestrator initialized")
+        
+        # We can't really test query processing without a RAG retriever or mocking it
+        # But we can check if the object is created correctly
+        
+    asyncio.run(main())
