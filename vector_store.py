@@ -131,14 +131,22 @@ class VectorStore:
             points = []
             
             for doc in documents:
-                # Generate unique ID if not present
-                point_id = doc.get('id') or str(uuid.uuid4())
+                # Always use a UUID as the Qdrant point ID to satisfy
+                # clusters that are configured for integer/UUID IDs.
+                # If the document already has an 'id' field (e.g. a string
+                # like 'knowledge_chunk_0_sub_0'), keep it in the payload
+                # as 'doc_id' so we don't lose that information.
+                original_id = doc.get('id')
+                point_id = str(uuid.uuid4())
                 
                 # Prepare payload (exclude embedding)
                 payload = {
                     k: v for k, v in doc.items()
                     if k != 'embedding'
                 }
+                # Preserve original document ID (if any) under a safe key
+                if original_id is not None:
+                    payload['doc_id'] = original_id
                 
                 # Create point
                 point = PointStruct(

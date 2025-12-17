@@ -88,18 +88,27 @@ uvicorn main:app --reload
 # Docs: http://localhost:8000/docs
 ```
 
-### Cloud Deployment (Render)
+### Cloud Deployment (Railway)
 
-See **[RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md)** for detailed deployment guide.
+This project is ready to run on **Railway** as a Python web service.
 
 **Quick Deploy:**
-1. Push code to GitHub
-2. Create new Web Service on Render
-3. Connect repository
-4. Add environment variables
-5. Deploy! 🚀
+1. Push this code to GitHub
+2. Create a new **Service** on Railway (type: **Python** or **Dockerless**)
+3. Connect your GitHub repository
+4. In the **Variables** section, add:
+   - `GROQ_API_KEY` – your Groq key
+   - `QDRANT_URL` – your Qdrant Cloud URL
+   - `QDRANT_API_KEY` – your Qdrant API key
+   - `ENVIRONMENT=production`
+   - (Optional) `ALLOWED_ORIGINS=https://your-app.up.railway.app`
+5. Set the **Start Command** to:
+   ```bash
+   python -m uvicorn main:app --host 0.0.0.0 --port $PORT
+   ```
+6. Deploy! 🚀
 
-Your API will be live at: `https://your-app.onrender.com`
+Railway will expose your API at a URL like: `https://your-app.up.railway.app`
 
 ---
 
@@ -109,7 +118,7 @@ Your API will be live at: `https://your-app.onrender.com`
 
 **Ask about phishing campaigns:**
 ```bash
-curl -X POST "https://your-app.onrender.com/query_agent" \
+curl -X POST "https://your-app.up.railway.app/query_agent" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "What is the click rate for Finance department?",
@@ -142,7 +151,7 @@ curl -X POST "https://your-app.onrender.com/query_agent" \
 ### 2. Upload Phishing Campaign Data
 
 ```bash
-curl -X POST "https://your-app.onrender.com/upload/phishing_campaign" \
+curl -X POST "https://your-app.up.railway.app/upload/phishing_campaign" \
   -F "file=@campaign_data.csv" \
   -F "campaign_name=Q4 2024 Security Simulation" \
   -F "campaign_description=Quarterly awareness training test"
@@ -159,7 +168,7 @@ U003,IT,Fake Invoice,Reported,120
 ### 3. Add Company Knowledge
 
 ```bash
-curl -X POST "https://your-app.onrender.com/upload/company_knowledge" \
+curl -X POST "https://your-app.up.railway.app/upload/company_knowledge" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "title=About Our Company" \
   -d "category=about" \
@@ -169,7 +178,7 @@ curl -X POST "https://your-app.onrender.com/upload/company_knowledge" \
 ### 4. Add General Phishing Knowledge
 
 ```bash
-curl -X POST "https://your-app.onrender.com/upload/phishing_general" \
+curl -X POST "https://your-app.up.railway.app/upload/phishing_general" \
   -d "title=Common Phishing Tactics" \
   -d "topic=tactics" \
   -d "content=Phishing attacks commonly exploit psychological triggers: **Urgency** creates panic ('Your account will be closed'), **Authority** impersonates executives ('CEO needs this immediately'), **Fear** threatens consequences ('Suspicious activity detected')..."
@@ -178,7 +187,7 @@ curl -X POST "https://your-app.onrender.com/upload/phishing_general" \
 ### 5. Check System Health
 
 ```bash
-curl https://your-app.onrender.com/health
+curl https://your-app.up.railway.app/health
 ```
 
 ---
