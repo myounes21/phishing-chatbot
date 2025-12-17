@@ -1,13 +1,14 @@
 """
 Embeddings Module
-Handles text embedding generation using mixedbread-ai
+Handles text embedding generation using Hugging Face sentence-transformers
 """
 
-from mixedbread_ai.client import MixedbreadAI
+from sentence_transformers import SentenceTransformer
 import numpy as np
 from typing import List, Union, Dict, Any
 import logging
 import os
+import torch
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -15,50 +16,60 @@ logger = logging.getLogger(__name__)
 
 class EmbeddingGenerator:
     """
-    Generates embeddings for text using mixedbread-ai models
+    Generates embeddings for text using Hugging Face sentence-transformers models
     """
     
-    def __init__(self, model_name: str = "mixedbread-ai/mxbai-embed-large-v1"):
+    def __init__(self, model_name: str = None):
         """
         Initialize the embedding generator
         
         Args:
-            model_name: Name of the mixedbread-ai model to use
+            model_name: Name of the Hugging Face model to use (defaults to env var or BAAI/bge-small-en-v1.5)
         """
-        self.model_name = model_name
-        self.client = None
+        # Get model name from environment or use default
+        self.model_name = model_name or os.getenv('EMBEDDING_MODEL', 'BAAI/bge-small-en-v1.5')
+        self.model = None
         self.dimension = None
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         
     def load_model(self):
-        """Initialize the mixedbread-ai client"""
+        """Initialize the Hugging Face sentence-transformer model"""
         try:
             logger.info(f"Loading embedding model: {self.model_name}")
-            api_key = os.getenv('MIXEDBREAD_API_KEY')
-            if not api_key:
-                logger.warning("MIXEDBREAD_API_KEY environment variable is not set")
-
-            self.client = MixedbreadAI(api_key=api_key)
+            logger.info(f"Using device: {self.device}")
             
-            # Get embedding dimension by embedding a test string
-            try:
-                # We need to determine dimension.
-                # If the API call fails (e.g. no key), we might not be able to set dimension.
-                # But typically we need dimension for vector store initialization.
-                response = self.client.embeddings(
-                    model=self.model_name,
-                    input="test"
+            # Load the model
+            # Note: Hugging Face API key is optional for public models
+            # If you have a private model, you can use: token=os.getenv('HUGGINGFACE_API_KEY')
+            hf_token = os.getenv('HUGGINGFACE_API_KEY')
+            
+            if hf_token:
+                logger.info("Using Hugging Face API token")
+                self.model = SentenceTransformer(
+                    self.model_name,
+                    device=self.device,
+                    use_auth_token=hf_token
                 )
-                if response.data and len(response.data) > 0:
-                    self.dimension = len(response.data[0].embedding)
-
-                logger.info(f"Model loaded successfully. Embedding dimension: {self.dimension}")
+            else:
+                logger.info("Loading public model (no API token required)")
+                self.model = SentenceTransformer(
+                    self.model_name,
+                    device=self.device
+                )
+            
+            # Get embedding dimension by encoding a test string
+            try:
+                test_embedding = self.model.encode("test", normalize_embeddings=True)
+                self.dimension = len(test_embedding)
+                logger.info(f"✅ Model loaded successfully. Embedding dimension: {self.dimension}")
             except Exception as e:
-                logger.warning(f"Could not determine embedding dimension on load: {e}")
-                # We don't raise here to allow instantiation even if API is not reachable yet,
-                # but subsequent calls will fail if client is not working.
+                logger.error(f"❌ Could not determine embedding dimension: {e}")
+                # Default dimension for BAAI/bge-small-en-v1.5 is 384
+                self.dimension = 384
+                logger.warning(f"⚠️ Using default dimension: {self.dimension}")
             
         except Exception as e:
-            logger.error(f"Error loading model: {e}")
+            logger.error(f"❌ Error loading model: {e}")
             raise
     
     def encode_text(self, text: Union[str, List[str]], 
@@ -69,13 +80,13 @@ class EmbeddingGenerator:
         
         Args:
             text: Single text string or list of texts
-            normalize: Whether to normalize embeddings
+            normalize: Whether to normalize embeddings (default: True)
             batch_size: Batch size for processing
             
         Returns:
             Numpy array of embeddings
         """
-        if self.client is None:
+        if self.model is None:
             self.load_model()
         
         try:
@@ -83,35 +94,27 @@ class EmbeddingGenerator:
             is_single = isinstance(text, str)
             texts = [text] if is_single else text
             
-            all_embeddings = []
-
-            # Process in batches
-            # The SDK handles lists, but we might want to respect batch_size if provided
-            # and if the list is very large.
-            for i in range(0, len(texts), batch_size):
-                batch_texts = texts[i:i + batch_size]
-
-                response = self.client.embeddings(
-                    model=self.model_name,
-                    input=batch_texts,
-                    normalized=normalize
-                )
-
-                # Extract embeddings from response
-                batch_embeddings = [item.embedding for item in response.data]
-                all_embeddings.extend(batch_embeddings)
-
-            # Convert to numpy array
-            embeddings = np.array(all_embeddings)
+            # Encode texts using sentence-transformers
+            # The model handles batching internally, but we can specify batch_size
+            embeddings = self.model.encode(
+                texts,
+                normalize_embeddings=normalize,
+                batch_size=batch_size,
+                show_progress_bar=False
+            )
+            
+            # Convert to numpy array if not already
+            if not isinstance(embeddings, np.ndarray):
+                embeddings = np.array(embeddings)
             
             # Return single embedding if input was single text
             if is_single:
-                return embeddings[0]
+                return embeddings[0] if len(embeddings.shape) > 1 else embeddings
             
             return embeddings
             
         except Exception as e:
-            logger.error(f"Error encoding text: {e}")
+            logger.error(f"❌ Error encoding text: {e}")
             raise
     
     def encode_insights(self, insights: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -124,7 +127,7 @@ class EmbeddingGenerator:
         Returns:
             List of insights with added 'embedding' field
         """
-        if self.client is None:
+        if self.model is None:
             self.load_model()
         
         # Extract texts
@@ -141,7 +144,7 @@ class EmbeddingGenerator:
         for insight, embedding in zip(insights, embeddings):
             insight['embedding'] = embedding.tolist()
         
-        logger.info(f"Successfully generated embeddings for {len(insights)} insights")
+        logger.info(f"✅ Successfully generated embeddings for {len(insights)} insights")
         return insights
     
     def compute_similarity(self, text1: str, text2: str) -> float:
@@ -155,14 +158,14 @@ class EmbeddingGenerator:
         Returns:
             Similarity score (0-1)
         """
-        if self.client is None:
+        if self.model is None:
             self.load_model()
         
-        emb1 = self.encode_text(text1)
-        emb2 = self.encode_text(text2)
+        emb1 = self.encode_text(text1, normalize=True)
+        emb2 = self.encode_text(text2, normalize=True)
         
-        # Cosine similarity
-        similarity = np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
+        # Cosine similarity (already normalized, so just dot product)
+        similarity = np.dot(emb1, emb2)
         
         return float(similarity)
     
@@ -174,31 +177,28 @@ class EmbeddingGenerator:
             Embedding dimension
         """
         if self.dimension is None:
-            if self.client is None:
+            if self.model is None:
                 self.load_model()
 
-            # If still None, try to fetch again
+            # If still None, try to encode a test string
             if self.dimension is None:
                 try:
-                    response = self.client.embeddings(
-                        model=self.model_name,
-                        input="test"
-                    )
-                    if response.data and len(response.data) > 0:
-                        self.dimension = len(response.data[0].embedding)
+                    test_embedding = self.model.encode("test", normalize_embeddings=True)
+                    self.dimension = len(test_embedding)
                 except Exception as e:
-                    logger.error(f"Failed to determine embedding dimension: {e}")
-                    raise
+                    logger.error(f"❌ Failed to determine embedding dimension: {e}")
+                    # Default dimension for BAAI/bge-small-en-v1.5 is 384
+                    self.dimension = 384
+                    logger.warning(f"⚠️ Using default dimension: {self.dimension}")
         
         return self.dimension
 
 
 if __name__ == "__main__":
     # Test the embedding generator
-    # Note: Requires MIXEDBREAD_API_KEY environment variable
+    # Note: HUGGINGFACE_API_KEY is optional for public models
     generator = EmbeddingGenerator()
     
-    # We catch the error to print a friendly message if API key is missing
     try:
         generator.load_model()
 
@@ -225,4 +225,6 @@ if __name__ == "__main__":
         print(f"Similarity between text 1 and itself: {similarity:.4f}")
 
     except Exception as e:
-        print(f"Test failed (likely due to missing API key): {e}")
+        print(f"Test failed: {e}")
+        import traceback
+        traceback.print_exc()

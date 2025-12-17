@@ -59,6 +59,8 @@ class HealthResponse(BaseModel):
     status: str
     components: Dict[str, bool]
     collections: List[str]
+    message: Optional[str] = Field(None, description="Status message")
+    environment: Optional[Dict[str, str]] = Field(None, description="Environment variable status")
 
 # ============================================
 # Global State
@@ -71,6 +73,7 @@ class AppState:
         self.rag_retriever = None
         self.llm_orchestrator = None
         self.data_processor = None
+        self.pdf_processor = None
         self.initialized = False
 
 app_state = AppState()
@@ -87,21 +90,36 @@ async def lifespan(app: FastAPI):
     try:
         # Get configuration from environment
         groq_api_key = os.getenv("GROQ_API_KEY")
-        mixedbread_api_key = os.getenv("MIXEDBREAD_API_KEY")
+        huggingface_api_key = os.getenv("HUGGINGFACE_API_KEY")  # Optional for public models
+        embedding_model = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
         qdrant_url = os.getenv("QDRANT_URL")  # Qdrant Cloud URL
         qdrant_api_key = os.getenv("QDRANT_API_KEY")  # Qdrant Cloud API Key
         
         if not groq_api_key:
             logger.warning("⚠️ GROQ_API_KEY not set - LLM features will be limited")
         
-        if not mixedbread_api_key:
-            logger.warning("⚠️ MIXEDBREAD_API_KEY not set - Embedding generation will fail")
+        if not huggingface_api_key:
+            logger.info("ℹ️ HUGGINGFACE_API_KEY not set - using public model (no API key required)")
         
         # Initialize Embedding Generator
-        logger.info("📊 Initializing embedding generator...")
-        app_state.embedding_generator = EmbeddingGenerator()
-        app_state.embedding_generator.load_model()
-        logger.info("✅ Embedding generator ready")
+        logger.info(f"📊 Initializing embedding generator with model: {embedding_model}...")
+        try:
+            app_state.embedding_generator = EmbeddingGenerator(model_name=embedding_model)
+            app_state.embedding_generator.load_model()
+            # Verify embedding generator is working by checking dimension
+            if app_state.embedding_generator.dimension is None:
+                # Default dimension for BAAI/bge-small-en-v1.5 is 384
+                default_dim = 384
+                logger.warning(f"⚠️ Could not determine embedding dimension - using default {default_dim}")
+                app_state.embedding_generator.dimension = default_dim
+            logger.info(f"✅ Embedding generator ready (dimension: {app_state.embedding_generator.dimension})")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize embedding generator: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            logger.error("💡 Check that the model name is correct and you have internet connection to download the model")
+            logger.error(f"💡 Model: {embedding_model}")
+            raise
         
         # Initialize PDF Processor
         logger.info("📄 Initializing PDF processor...")
@@ -111,7 +129,8 @@ async def lifespan(app: FastAPI):
         # Initialize Vector Store (Qdrant Cloud)
         logger.info("🗄️ Connecting to Qdrant Cloud...")
         # Get dimension from embedding generator if available, otherwise use default
-        vector_size = app_state.embedding_generator.dimension or 1024
+        # Default for BAAI/bge-small-en-v1.5 is 384
+        vector_size = app_state.embedding_generator.dimension or 384
         
         app_state.vector_store = VectorStore(
             url=qdrant_url,
@@ -147,20 +166,40 @@ async def lifespan(app: FastAPI):
         # Initialize LLM Orchestrator
         if groq_api_key:
             logger.info("🤖 Connecting to Groq LLM...")
-            groq_model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-            app_state.llm_orchestrator = LLMOrchestrator(
-                api_key=groq_api_key,
-                model=groq_model,
-                rag_retriever=app_state.rag_retriever
-            )
-            logger.info(f"✅ LLM orchestrator ready (model: {groq_model})")
+            try:
+                groq_model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+                app_state.llm_orchestrator = LLMOrchestrator(
+                    api_key=groq_api_key,
+                    model=groq_model,
+                    rag_retriever=app_state.rag_retriever
+                )
+                logger.info(f"✅ LLM orchestrator ready (model: {groq_model})")
+            except Exception as e:
+                logger.error(f"❌ Failed to initialize LLM orchestrator: {e}")
+                logger.error("💡 Check that GROQ_API_KEY is valid. Get one at https://console.groq.com")
+                raise
+        else:
+            logger.warning("⚠️ GROQ_API_KEY not set - query endpoint will not work")
+            logger.warning("💡 Get a free API key at https://console.groq.com")
         
         app_state.initialized = True
         logger.info("✨ System fully initialized and ready!")
         
     except Exception as e:
         logger.error(f"❌ Initialization error: {e}")
-        raise
+        logger.error(f"❌ Full error details: {type(e).__name__}: {str(e)}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
+        # Don't raise - allow app to start but mark as not initialized
+        # This way health check can still work
+        app_state.initialized = False
+        logger.error("⚠️ System started but initialization failed. Check logs above for details.")
+        logger.error("💡 Visit /health endpoint to see which components failed to initialize")
+        logger.error("💡 Common fixes:")
+        logger.error("   - Verify GROQ_API_KEY is set and valid")
+        logger.error("   - Verify MIXEDBREAD_API_KEY is set and valid")
+        logger.error("   - Verify QDRANT_URL and QDRANT_API_KEY are set (or system will use in-memory)")
+        logger.error("   - Check Railway logs for detailed error messages")
     
     yield
     
@@ -179,19 +218,23 @@ app = FastAPI(
 )
 
 # CORS Middleware - Configure from environment
+# For web chatbot integration, we need to allow all origins by default
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "*")
 if allowed_origins_env == "*":
     allowed_origins = ["*"]
+    logger.info("🌐 CORS: Allowing all origins (*)")
 else:
     # Split comma-separated origins
     allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",")]
+    logger.info(f"🌐 CORS: Allowing origins: {allowed_origins}")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # ============================================
@@ -210,12 +253,21 @@ async def root():
 
 @app.get("/health", response_model=HealthResponse, tags=["System"])
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint - Use this to diagnose initialization issues"""
     components = {
         "embedding_generator": app_state.embedding_generator is not None,
         "vector_store": app_state.vector_store is not None,
         "rag_retriever": app_state.rag_retriever is not None,
         "llm_orchestrator": app_state.llm_orchestrator is not None,
+    }
+    
+    # Check environment variables
+    env_status = {
+        "GROQ_API_KEY": "set" if os.getenv("GROQ_API_KEY") else "missing",
+        "HUGGINGFACE_API_KEY": "set" if os.getenv("HUGGINGFACE_API_KEY") else "optional (public models)",
+        "EMBEDDING_MODEL": os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5"),
+        "QDRANT_URL": "set" if os.getenv("QDRANT_URL") else "missing (using in-memory)",
+        "QDRANT_API_KEY": "set" if os.getenv("QDRANT_API_KEY") else "missing (using in-memory)",
     }
     
     collections = []
@@ -227,10 +279,36 @@ async def health_check():
         except Exception as e:
             logger.error(f"Error fetching collections: {e}")
     
+    # Check if all required components exist (more reliable than initialized flag)
+    all_components_ready = all(components.values())
+    status = "healthy" if (app_state.initialized and all_components_ready) else "error"
+    
+    if app_state.initialized and all_components_ready:
+        message = "System is ready"
+    else:
+        message = "System initialization failed - check logs"
+        missing_components = [k for k, v in components.items() if not v]
+        if missing_components:
+            message += f". Missing components: {', '.join(missing_components)}"
+        elif not app_state.initialized:
+            message += f". Initialized flag is False but components exist: {[k for k, v in components.items() if v]}"
+    
     return {
-        "status": "healthy" if app_state.initialized else "initializing",
+        "status": status,
         "components": components,
-        "collections": collections
+        "collections": collections,
+        "message": message,
+        "environment": env_status
+    }
+
+@app.get("/test", tags=["System"])
+async def test_endpoint():
+    """Simple test endpoint to verify API is working"""
+    return {
+        "status": "ok",
+        "message": "API is responding",
+        "initialized": app_state.initialized,
+        "timestamp": pd.Timestamp.now().isoformat()
     }
 
 @app.post("/query_agent", response_model=QueryResponse, tags=["Query"])
@@ -241,12 +319,38 @@ async def query_agent(request: QueryRequest):
     - Phishing campaigns (click rates, risk analysis)
     - Company knowledge (who we are, what we do)
     - General phishing information (tactics, defenses)
-    """
-    if not app_state.initialized:
-        raise HTTPException(status_code=503, detail="System not fully initialized")
     
+    Perfect for chatbot integration - returns JSON with response and sources.
+    """
+    # Check if all required components exist (more reliable check)
+    # Check all required components
     if not app_state.llm_orchestrator:
-        raise HTTPException(status_code=503, detail="LLM not available - check GROQ_API_KEY")
+        logger.error("❌ LLM orchestrator not available")
+        raise HTTPException(
+            status_code=503, 
+            detail="LLM not available. Please set GROQ_API_KEY environment variable. Get a free API key at https://console.groq.com"
+        )
+    
+    if not app_state.embedding_generator:
+        logger.error("❌ Embedding generator not available")
+        raise HTTPException(
+            status_code=503,
+            detail="Embedding generator not available. Check server logs for initialization errors."
+        )
+    
+    if not app_state.vector_store:
+        logger.error("❌ Vector store not available")
+        raise HTTPException(
+            status_code=503,
+            detail="Vector store not available. Check QDRANT_URL and QDRANT_API_KEY or check server logs."
+        )
+    
+    if not app_state.rag_retriever:
+        logger.error("❌ RAG retriever not available")
+        raise HTTPException(
+            status_code=503,
+            detail="RAG retriever not available. This is an internal error - check server logs."
+        )
     
     try:
         logger.info(f"📥 Query received: {request.query[:100]}...")
@@ -475,6 +579,9 @@ async def upload_pdf_document(
     """
     if not app_state.initialized:
         raise HTTPException(status_code=503, detail="System not initialized")
+    
+    if not app_state.pdf_processor:
+        raise HTTPException(status_code=503, detail="PDF processor not initialized")
     
     if not file.filename.endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")

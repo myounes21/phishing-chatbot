@@ -439,8 +439,20 @@
                 });
 
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+                    let errorData = {};
+                    try {
+                        errorData = await response.json();
+                    } catch (e) {
+                        console.error('Failed to parse error response:', e);
+                    }
+                    const errorDetail = errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+                    console.error('API Error:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        detail: errorDetail,
+                        fullError: errorData
+                    });
+                    throw new Error(`HTTP ${response.status}: ${errorDetail}`);
                 }
 
                 const data = await response.json();
@@ -456,20 +468,42 @@
 
             } catch (error) {
                 removeLoading();
-                let errorMessage = '❌ **Error**: ';
+                console.error('Full error object:', error);
+                console.error('Error message:', error.message);
+                console.error('Error stack:', error.stack);
+                
+                let errorMessage = '**Error**: ';
                 
                 if (error.name === 'AbortError') {
                     errorMessage += 'Request timed out. The server may be slow or unreachable.';
                 } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
                     errorMessage += 'Cannot connect to server.\n\nPlease check:\n- API URL is correct\n- Server is running\n- CORS is enabled\n- No firewall blocking the connection';
+                } else if (error.message.includes('503')) {
+                    // Extract the actual error detail from the message
+                    const errorDetail = error.message.replace('HTTP 503: ', '').trim();
+                    errorMessage += `**503 Service Unavailable**\n\n${errorDetail}\n\n`;
+                    
+                    // Add helpful troubleshooting
+                    errorMessage += '**Troubleshooting Steps:**\n\n';
+                    errorMessage += '1. **Check Health Endpoint**\n';
+                    errorMessage += `   Visit: ${currentApiUrl}/health\n`;
+                    errorMessage += '   This shows which components are initialized\n\n';
+                    errorMessage += '2. **Check Server Logs**\n';
+                    errorMessage += '   Look at the terminal where you ran `uvicorn main:app`\n';
+                    errorMessage += '   Look for initialization errors or component failures\n\n';
+                    errorMessage += '3. **Verify API Keys**\n';
+                    errorMessage += '   - Check that GROQ_API_KEY is set and valid\n';
+                    errorMessage += '   - Check that MIXEDBREAD_API_KEY is set and valid\n';
+                    errorMessage += '   - Get Groq API key: https://console.groq.com\n';
+                    errorMessage += '   - Get Mixedbread API key: https://www.mixedbread.ai/\n\n';
+                    errorMessage += '4. **Restart Server**\n';
+                    errorMessage += '   After fixing issues, restart: `uvicorn main:app --reload`';
                 } else {
+                    // Show the actual error message
                     errorMessage += error.message;
                 }
                 
-                errorMessage += '\n\n**Troubleshooting:**\n- Make sure the server is running: `uvicorn main:app --reload`\n- Check the API URL (should be like `http://localhost:8000`)\n- Open browser console (F12) for more details';
-                
                 addMessage(errorMessage, false);
-                console.error('Query Error:', error);
             } finally {
                 sendBtn.disabled = false;
             }
